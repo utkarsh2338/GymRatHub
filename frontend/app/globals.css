@@ -1,0 +1,260 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --font-inter: "Inter", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+
+  /* Neon Green */
+  --color-primary: #39E609;
+  --color-primary-hover: #2ecc06;
+  --color-primary-muted: rgba(57, 230, 9, 0.12);
+
+  /* Surfaces */
+  --color-surface: #111111;
+  --color-surface-raised: #1a1a1a;
+  --color-surface-card: #1c1c1c;
+  --color-surface-hover: #222222;
+
+  /* Borders */
+  --color-border: #2a2a2a;
+  --color-border-muted: #1f1f1f;
+
+  /* Accents */
+  --color-orange: #f97316;
+  --color-blue: #38bdf8;
+  --color-purple: #a855f7;
+  --color-cyan: #22d3ee;
+}
+
+/* ─── Base Reset ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+}
+
+body {
+  background-color: #0a0a0a;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* ─── Tailwind v4 Custom Theme ───────────────────────────────────────────── */
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+
+  --color-neon: #39E609;
+  --color-neon-hover: #2ecc06;
+  --color-neon-muted: rgba(57, 230, 9, 0.12);
+
+  --color-surface: #111111;
+  --color-card: #1c1c1c;
+
+  --shadow-neon-sm: 0 0 8px rgba(57, 230, 9, 0.4);
+  --shadow-neon-md: 0 0 16px rgba(57, 230, 9, 0.5);
+  --shadow-neon-lg: 0 0 32px rgba(57, 230, 9, 0.6);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px rgba(57, 230, 9, 0.15);
+
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-wave-water: wave-water 3s ease-in-out infinite;
+  --animate-float-up: float-up 1s ease-out forwards;
+  --animate-spin-slow: spin-slow 20s linear infinite;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #111111; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #39E609; }
+
+::selection { background: rgba(57, 230, 9, 0.3); color: #fff; }
+
+/* ─── Keyframes ─────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(57, 230, 9, 0.4); }
+  50% { box-shadow: 0 0 24px rgba(57, 230, 9, 0.8); }
+}
+
+@keyframes wave-water {
+  0%, 100% { transform: translateX(0) scaleY(1); }
+  50% { transform: translateX(-10px) scaleY(1.05); }
+}
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Utility Classes ───────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #1c1c1c 0%, #2a2a2a 50%, #1c1c1c 100%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: 6px;
+}
+
+.btn-neon {
+  background: #39E609;
+  color: #000;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-neon:hover {
+  background: #2ecc06;
+  box-shadow: 0 0 24px rgba(57, 230, 9, 0.6);
+  transform: translateY(-1px);
+}
+.btn-neon:active {
+  transform: translateY(0);
+}
+
+.text-gradient-green {
+  background: linear-gradient(135deg, #39E609, #22c55e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass {
+  background: rgba(28, 28, 28, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.water-wave {
+  animation: wave-water 3s ease-in-out infinite;
+}
+
+.float-up {
+  animation: float-up 1s ease-out forwards;
+}
+
+.pop-in {
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.neon-border {
+  border: 1px solid rgba(57, 230, 9, 0.4);
+  box-shadow: 0 0 8px rgba(57, 230, 9, 0.2);
+}
+
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+
+/* ─── Font utility classes ───────────────────────────────────────────────── */
+.font-display {
+  font-family: "Outfit", sans-serif;
+}
+
+.dashboard-main {
+  background: #0a0a0a;
+}
+
+.dashboard-page {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 32px 28px 96px;
+}
+
+.dashboard-page-tight {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 28px 24px 96px;
+}
+
+@media (max-width: 767px) {
+  .dashboard-page,
+  .dashboard-page-tight {
+    padding: 20px 16px 96px;
+  }
+}
+
+/* ─── Appearance themes ──────────────────────────────────────────────────── */
+html[data-theme="light"] body {
+  background-color: #f4f4f5;
+  color: #111827;
+}
+
+html[data-theme="light"] .dashboard-main {
+  background: #f4f4f5;
+}
+
+html[data-compact] .dashboard-page,
+html[data-compact] .dashboard-page-tight {
+  padding-top: 16px;
+  padding-bottom: 64px;
+}
+
+html[data-reduced-motion] *,
+html[data-reduced-motion] *::before,
+html[data-reduced-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
