@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import WorkoutsPage from "@/components/workouts/WorkoutsPage";
+import ExerciseDetailPage from "@/components/workouts/ExerciseDetailPage";
 
 export const metadata: Metadata = {
-  title: "Workout Library",
-  description: "Browse 10,000+ workouts filtered by muscle group, difficulty, and equipment.",
+  title: "Exercise Detail",
 };
 
-export default function Page() {
-  return <WorkoutsPage />;
+// Next.js 15 requires params to be awaited as a Promise
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <ExerciseDetailPage id={id} />;
 }

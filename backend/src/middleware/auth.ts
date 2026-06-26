@@ -32,6 +32,13 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+/**
+ * In-memory set of Clerk user IDs already provisioned in MongoDB this process.
+ * Lets requireAuth skip a DB lookup on every subsequent authenticated request.
+ * Safe to lose on restart -- ensureUserRecord re-provisions idempotently.
+ */
+const provisionedUsers = new Set<string>();
+
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
@@ -56,7 +63,14 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
     req.auth = { userId: decoded.sub };
 
-    await ensureUserRecord(decoded.sub);
+    // Provision the MongoDB user record only once per server lifetime.
+    // After the first request for a given user, subsequent requests skip the
+    // DB lookup (and Clerk API call) entirely, removing a round-trip from the
+    // critical path of every authenticated request -> noticeably faster loads.
+    if (!provisionedUsers.has(decoded.sub)) {
+      await ensureUserRecord(decoded.sub);
+      provisionedUsers.add(decoded.sub);
+    }
 
     next();
   } catch (error) {
