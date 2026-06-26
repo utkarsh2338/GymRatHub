@@ -14,7 +14,6 @@ const CALLBACK_PROPS = {
   transferable: true as const,
 };
 
-/** Hard navigation after OAuth so middleware sees the session cookie. */
 function DashboardRedirectAfterOAuth() {
   const { isLoaded, isSignedIn } = useAuth();
   const redirected = useRef(false);
@@ -28,11 +27,6 @@ function DashboardRedirectAfterOAuth() {
   return null;
 }
 
-/**
- * Completes OAuth redirects started by authenticateWithRedirect on the auth page.
- * Client-only: this component depends on a live ClerkProvider, so the route that
- * renders it must be dynamic (never statically prerendered at build time).
- */
 export default function SSOCallbackClient() {
   return (
     <div
