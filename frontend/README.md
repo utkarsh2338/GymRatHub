@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏋️‍♂️ GymRatHub Client Application
 
-## Getting Started
+GymRatHub is a premium, state-of-the-art all-in-one fitness and workout tracking application. This folder holds the frontend client, built using Next.js 15, Tailwind CSS v4, Framer Motion, and TanStack Query.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Setup & Installation
+
+### 1. Prerequisites
+*   Node.js (v18.x or later)
+*   A running instance of the GymRatHub backend API (booted on `http://localhost:5000`)
+
+### 2. Environment Variables Configuration
+
+Create a `.env.local` file in this directory:
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/auth
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/auth
+NEXT_PUBLIC_CLERK_SIGN_IN_FORCE_REDIRECT_URL=/dashboard
+NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL=/dashboard
+
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Running Locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Install dependencies and boot the Next.js development server:
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Technology Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+*   **Framework**: [Next.js 15](https://nextjs.org/) (App Router, Dynamic SSR)
+*   **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) & Vanilla CSS Tokens
+*   **Animations**: [Framer Motion](https://www.framer.com/motion/)
+*   **State Management & Data**: [Zustand](https://zustand-demo.pmnd.rs/) & [TanStack Query v5](https://tanstack.com/query/latest)
+*   **Authentication**: [Clerk Auth](https://clerk.com/)
+*   **Icons**: [Lucide React](https://lucide.dev/)
+*   **Charts**: [Recharts](https://recharts.org/)
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 💎 Design System & Aesthetic Customization
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+GymRatHub utilizes a high-end, responsive system. Colors and typography are driven by semantic CSS tokens located inside [globals.css](file:///e:/Projects/GymRatHub/frontend/app/globals.css):
+
+*   **Primary Neon Glow**: `#39E609` (Active interactions, active navigation states)
+*   **Surface elevations**: Dark mode backgrounds (`#0a0a0a`), layered container surfaces (`#111111`, `#1c1c1c`)
+*   **Typography**: Inter (UI / System) paired with Outfit (Display / Headers)
