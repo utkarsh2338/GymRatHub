@@ -6,6 +6,7 @@ import express from "express";
 import cors from "cors";
 import { connectDB } from "./config/db";
 import apiRouter from "./routes/api";
+import authRouter from "./routes/auth";
 import { requireAuth } from "./middleware/auth";
 
 const app = express();
@@ -58,6 +59,9 @@ app.use(express.json());
 app.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date() });
 });
+
+// Auth API routes (unprotected)
+app.use("/api/auth", authRouter);
 
 // Protected API routes
 app.use("/api", requireAuth, apiRouter);

@@ -1,23 +1,15 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
+import { useAuth, useClerk } from "@/lib/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Dumbbell, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { useSignIn, useSignUp } from "@clerk/nextjs/legacy";
 import OAuthButtons from "@/components/auth/OAuthButtons";
-import { activateSessionAndNavigate, AUTH_SUCCESS_PATH } from "@/lib/auth-redirect";
-
-const CLERK_CALLBACK_PARAMS = [
-  "__clerk_status",
-  "__clerk_created_session",
-  "__clerk_handshake",
-  "__clerk_handshake_nonce",
-] as const;
+import { AUTH_SUCCESS_PATH } from "@/lib/auth-redirect";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -60,31 +52,23 @@ const inputStyle: React.CSSProperties = {
 function LoginForm({ onSwitch }: { onSwitch: () => void }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { login } = useClerk();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({ 
     resolver: zodResolver(loginSchema) 
   });
 
   const onSubmit = async (data: LoginForm) => {
-    if (!isLoaded) return;
     setLoading(true);
     try {
-      const result = await signIn.create({
-        identifier: data.email,
-        password: data.password,
-      });
-
-      if (result.status === "complete") {
+      const success = await login(data.email, data.password);
+      if (success) {
         toast.success("Welcome back! 🎉");
-        await activateSessionAndNavigate(setActive, result.createdSessionId);
-      } else {
-        console.log(result);
-        toast.error("Incomplete sign in. Please verify credentials.");
+        window.location.replace(AUTH_SUCCESS_PATH);
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.errors?.[0]?.message || "Invalid email or password");
+      toast.error("Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -162,9 +146,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 
 function SignupForm({ onSwitch }: { onSwitch: () => void }) {
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
-  const { isLoaded, signUp, setActive } = useSignUp();
+  const { signup } = useClerk();
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
@@ -173,98 +155,21 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
   const selectedGoal = watch("goal");
 
   const onSubmit = async (data: SignupForm) => {
-    if (!isLoaded || loading) return;
     setLoading(true);
     try {
-      await signUp.create({
-        emailAddress: data.email,
-        password: data.password,
-        firstName: data.name.split(" ")[0] || "GymRat",
-        lastName: data.name.split(" ").slice(1).join(" ") || "Athlete",
-      });
-
-      // Request email verification code
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      setVerifying(true);
-      toast.success("Verification code sent to your email! 📧");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.errors?.[0]?.message || "Registration failed. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isLoaded || !verificationCode || loading) return;
-    setLoading(true);
-    try {
-      const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code: verificationCode,
-      });
-
-      if (completeSignUp.status === "complete") {
-        // Save selected goal in local storage to send to profile update in dashboard
+      const success = await signup(data.name, data.email, data.password, data.goal);
+      if (success) {
         localStorage.setItem("gymrat_signup_goal", selectedGoal);
-
         toast.success("Account created! Welcome to GymRat Hub 🎉");
-        await activateSessionAndNavigate(setActive, completeSignUp.createdSessionId);
-      } else {
-        console.error(completeSignUp);
-        toast.error("Verification failed. Please check the code.");
+        window.location.replace(AUTH_SUCCESS_PATH);
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.errors?.[0]?.message || "Invalid verification code");
+      toast.error(err.message || "Registration failed. Try again.");
     } finally {
       setLoading(false);
     }
   };
-
-  if (verifying) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: 26, color: "#fff", marginBottom: 6 }}>Verify Email</h2>
-          <p style={{ color: "#6b7280", fontSize: 14 }}>Enter the verification code sent to your email.</p>
-        </div>
-
-        <form onSubmit={handleVerify} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 12, color: "#9ca3af", fontWeight: 500, marginBottom: 6 }}>Verification Code</label>
-            <input
-              type="text"
-              placeholder="e.g. 123456"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              style={inputStyle}
-              required
-            />
-          </div>
-
-          <motion.button
-            type="submit"
-            disabled={loading}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            className="btn-neon"
-            style={{ width: "100%", padding: "13px", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.8 : 1 }}
-          >
-            {loading && <span style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(0,0,0,0.3)", borderTopColor: "#000", display: "inline-block", animation: "auth-spin 0.6s linear infinite" }} />}
-            Verify & Create Account
-          </motion.button>
-        </form>
-
-        <button
-          onClick={() => setVerifying(false)}
-          style={{ background: "none", border: "none", color: "#6b7280", fontSize: 14, cursor: "pointer", textDecoration: "underline" }}
-        >
-          Back to registration
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -359,22 +264,7 @@ export default function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const { isLoaded, isSignedIn } = useAuth();
 
-  // Strip stale OAuth callback params so /auth does not bounce back to /sso-callback.
-  useLayoutEffect(() => {
-    const url = new URL(window.location.href);
-    let changed = false;
-    for (const key of CLERK_CALLBACK_PARAMS) {
-      if (url.searchParams.has(key)) {
-        url.searchParams.delete(key);
-        changed = true;
-      }
-    }
-    if (changed) {
-      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
-    }
-  }, []);
-
-  // Already signed in — go to dashboard with a full reload for middleware.
+  // Already signed in — go to dashboard
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       window.location.replace(AUTH_SUCCESS_PATH);

@@ -18,7 +18,7 @@ export default function BillingSettings() {
     enabled: isApiReady,
   });
 
-  const currentPlan = data?.plan ?? "pro";
+  const currentPlan = data?.plan ?? "free";
 
   const planMutation = useMutation({
     mutationFn: (plan: string) => api("/users/plan", { method: "PUT", body: JSON.stringify({ plan }) }),
@@ -36,7 +36,7 @@ export default function BillingSettings() {
     { id: "elite", name: "Elite", price: "$24.99", period: "month", features: ["Everything in Pro", "1-on-1 trainer sessions", "Custom meal plans", "Dedicated coach"], color: "#f97316" },
   ];
 
-  const current = PLANS.find((p) => p.id === currentPlan) ?? PLANS[1];
+  const current = PLANS.find((p) => p.id === currentPlan) ?? PLANS[0];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

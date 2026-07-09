@@ -6,7 +6,7 @@ import {
   User, Bell, Shield, Palette, Dumbbell, CreditCard,
   LogOut, ChevronRight,
 } from "lucide-react";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk } from "@/lib/auth-context";
 import ProfileSettings from "./ProfileSettings";
 import NotificationsSettings from "./NotificationsSettings";
 import PrivacySettings from "./PrivacySettings";

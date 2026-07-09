@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dumbbell, Save } from "lucide-react";
+import { Dumbbell, Save, Scale, Flame, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,10 +10,10 @@ import { DEFAULT_FITNESS, type FitnessPreferences, type UserPreferencesResponse 
 import { cardStyle, sectionTitleStyle } from "./settings-ui";
 
 const GOALS = [
-  { id: "lose_weight", label: "Lose Weight", emoji: "⚖️" },
-  { id: "build_muscle", label: "Build Muscle", emoji: "💪" },
-  { id: "improve_endurance", label: "Endurance", emoji: "🏃" },
-  { id: "stay_active", label: "Stay Active", emoji: "✨" },
+  { id: "lose_weight", label: "Lose Weight", icon: Scale },
+  { id: "build_muscle", label: "Build Muscle", icon: Dumbbell },
+  { id: "improve_endurance", label: "Endurance", icon: Flame },
+  { id: "stay_active", label: "Stay Active", icon: Sparkles },
 ];
 const LEVELS = ["beginner", "intermediate", "advanced", "athlete"];
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -80,7 +80,7 @@ export default function FitnessSettings() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
             {GOALS.map((g) => (
               <button key={g.id} type="button" onClick={() => setPrefs((p) => ({ ...p, fitnessGoal: g.id }))} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, border: `1px solid ${prefs.fitnessGoal === g.id ? "#39E609" : "#2a2a2a"}`, background: prefs.fitnessGoal === g.id ? "rgba(57,230,9,0.08)" : "#1a1a1a", color: prefs.fitnessGoal === g.id ? "#39E609" : "#9ca3af", cursor: "pointer", fontSize: 14, fontWeight: 500, textAlign: "left" }}>
-                <span style={{ fontSize: 20 }}>{g.emoji}</span> {g.label}
+                <g.icon size={18} color={prefs.fitnessGoal === g.id ? "#39E609" : "#9ca3af"} style={{ flexShrink: 0 }} /> {g.label}
               </button>
             ))}
           </div>

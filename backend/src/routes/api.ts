@@ -7,7 +7,6 @@ import PlannerDayModel from "../models/Planner";
 import PostModel from "../models/Post";
 import UserChallengeModel from "../models/Challenge";
 import { searchTutorialVideos } from "../services/youtube";
-import { createClerkClient } from "@clerk/backend";
 import { FRESH_USER_STATS } from "../constants/freshUser";
 import workoutTrackingRouter from "./workoutTracking";
 import { syncTodayWorkoutFromTemplate } from "../services/workoutPlanSync";
@@ -28,10 +27,8 @@ const router = Router();
 
 router.use(workoutTrackingRouter);
 
-const clerkClient = createClerkClient({
-  publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-  secretKey: process.env.CLERK_SECRET_KEY,
-});
+
+
 
 // Helper to get day name
 function getDayName(): string {
@@ -51,28 +48,8 @@ router.get("/users/profile", async (req: AuthenticatedRequest, res: Response) =>
       return res.status(404).json({ error: "User profile not found." });
     }
 
-    // Keep profile in sync with Clerk (fixes stale mock names like "Jake Doe")
-    try {
-      const clerkUser = await clerkClient.users.getUser(clerkId!);
-      const clerkName = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim();
-      const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress;
-      let changed = false;
-      if (clerkName && clerkName !== user.name) {
-        user.name = clerkName;
-        changed = true;
-      }
-      if (clerkEmail && clerkEmail !== user.email) {
-        user.email = clerkEmail;
-        changed = true;
-      }
-      if (clerkUser.imageUrl && clerkUser.imageUrl !== user.avatar) {
-        user.avatar = clerkUser.imageUrl;
-        changed = true;
-      }
-      if (changed) await user.save();
-    } catch (syncErr) {
-      console.error("Clerk profile sync error:", syncErr);
-    }
+
+
 
     // Fresh accounts: activity stats stay at zero until a progress target is set
     if (!user.targetConfigured) {

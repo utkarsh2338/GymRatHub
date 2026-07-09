@@ -1,24 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useSignIn } from "@clerk/nextjs/legacy";
-import { OAUTH_PROVIDERS } from "@clerk/shared/oauth";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import OAuthProviderIcon from "@/components/auth/OAuthProviderIcon";
+import { useClerk } from "@/lib/auth-context";
+import { AUTH_SUCCESS_PATH } from "@/lib/auth-redirect";
 
 type OAuthMode = "sign-in" | "sign-up";
 type OAuthStrategy = "oauth_google" | "oauth_apple";
 
 const ENABLED_STRATEGIES: OAuthStrategy[] = ["oauth_google", "oauth_apple"];
-
-/** Clerk OAuth must use absolute URLs or redirects land on accounts.dev/default-redirect. */
-function getOAuthRedirectUrls() {
-  const origin = window.location.origin;
-  return {
-    redirectUrl: `${origin}/sso-callback`,
-    redirectUrlComplete: `${origin}/dashboard`,
-  };
-}
 
 const buttonStyle: React.CSSProperties = {
   background: "#1a1a1a",
@@ -38,68 +29,109 @@ const buttonStyle: React.CSSProperties = {
 
 interface OAuthButtonsProps {
   mode: OAuthMode;
-  /** Run before redirect (e.g. persist signup goal). */
   onBeforeRedirect?: () => void;
 }
 
-function getProviderMeta(strategy: OAuthStrategy) {
-  return OAUTH_PROVIDERS.find((p) => p.strategy === strategy);
-}
+export default function OAuthButtons({ mode, onBeforeRedirect }: OAuthButtonsProps) {
+  const { loginWithGoogle } = useClerk();
+  const [gisLoaded, setGisLoaded] = useState(false);
 
-export default function OAuthButtons({ onBeforeRedirect }: OAuthButtonsProps) {
-  const { isLoaded, signIn } = useSignIn();
-  const [loading, setLoading] = useState<OAuthStrategy | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ((window as any).google?.accounts?.oauth2) {
+      setGisLoaded(true);
+      return;
+    }
 
-  const handleOAuth = async (strategy: OAuthStrategy) => {
-    if (!isLoaded || !signIn || loading) return;
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGisLoaded(true);
+    document.body.appendChild(script);
+  }, []);
 
-    setLoading(strategy);
-    try {
-      onBeforeRedirect?.();
+  const handleOAuth = (strategy: OAuthStrategy) => {
+    if (strategy === "oauth_google") {
+      if (!gisLoaded || !(window as any).google?.accounts?.oauth2) {
+        toast.error("Google authentication is still loading. Please try again in a moment.");
+        return;
+      }
 
-      // Always use signIn for OAuth — Clerk signs up new users automatically.
-      await signIn.authenticateWithRedirect({
-        strategy,
-        ...getOAuthRedirectUrls(),
-      });
-    } catch (err: unknown) {
-      console.error(err);
-      const clerkErr = err as { errors?: { message: string }[]; message?: string };
-      toast.error(
-        clerkErr.errors?.[0]?.message || clerkErr.message || "OAuth sign-in failed. Try again."
-      );
-      setLoading(null);
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        toast.error(
+          "Google Client ID is not configured. Please define NEXT_PUBLIC_GOOGLE_CLIENT_ID in your .env.local file.",
+          { duration: 6000 }
+        );
+        return;
+      }
+
+      try {
+        if (mode === "sign-up") {
+          onBeforeRedirect?.();
+        }
+
+        const goal = typeof window !== "undefined" ? localStorage.getItem("gymrat_signup_goal") || "build_muscle" : "build_muscle";
+
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: "openid email profile",
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              console.error("Google OAuth error:", tokenResponse.error);
+              toast.error(`Google authentication error: ${tokenResponse.error}`);
+              return;
+            }
+
+            if (tokenResponse.access_token) {
+              toast.loading("Signing in with Google...", { id: "google-auth" });
+              const success = await loginWithGoogle(tokenResponse.access_token, goal);
+              if (success) {
+                toast.success("Welcome back! 🎉", { id: "google-auth" });
+                window.location.replace(AUTH_SUCCESS_PATH);
+              } else {
+                toast.error("Google login failed. Please try again.", { id: "google-auth" });
+              }
+            }
+          },
+          error_callback: (err: any) => {
+            console.error("Google client error:", err);
+            toast.error("Google client error occurred. Please check console for details.");
+          }
+        });
+
+        client.requestAccessToken();
+      } catch (err) {
+        console.error("Failed to initialize Google Login client:", err);
+        toast.error("Google Sign-In initialization failed.");
+      }
+    } else {
+      toast.info("Apple Sign-In is disabled in development.");
     }
   };
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
       {ENABLED_STRATEGIES.map((strategy) => {
-        const meta = getProviderMeta(strategy);
-        const providerId = meta?.provider ?? strategy.replace("oauth_", "");
-        const isBusy = loading === strategy;
-        const disabled = !isLoaded || (loading !== null && !isBusy);
+        const providerId = strategy.replace("oauth_", "");
+        const providerName = providerId.charAt(0).toUpperCase() + providerId.slice(1);
 
         return (
           <button
             key={strategy}
             type="button"
-            disabled={disabled}
             onClick={() => handleOAuth(strategy)}
-            style={{
-              ...buttonStyle,
-              opacity: disabled ? 0.55 : 1,
-              cursor: disabled ? "not-allowed" : "pointer",
-            }}
+            style={buttonStyle}
             onMouseEnter={(e) => {
-              if (!disabled) e.currentTarget.style.borderColor = "#39E609";
+              e.currentTarget.style.borderColor = "#39E609";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = "#333";
             }}
           >
             <OAuthProviderIcon providerId={providerId} />
-            {isBusy ? "Connecting…" : meta?.name ?? providerId}
+            {providerName}
           </button>
         );
       })}

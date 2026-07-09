@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Camera, Save, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useUser, useClerk } from "@clerk/nextjs";
+import { useUser, useClerk } from "@/lib/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, useIsApiReady } from "@/lib/api-client";
 import { useEffect } from "react";
@@ -75,7 +75,7 @@ export default function ProfileSettings() {
   const avatarUrl = clerkUser?.imageUrl || profile?.avatar || "";
   const displayEmail = profile?.email || clerkUser?.primaryEmailAddress?.emailAddress || "";
   const planLabel =
-    profile?.plan === "elite" ? "Elite Member" : profile?.plan === "free" ? "Free Member" : "Pro Member";
+    profile?.plan === "elite" ? "Elite Member" : profile?.plan === "pro" ? "Pro Member" : "Free Member";
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

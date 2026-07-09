@@ -10,6 +10,6 @@ export function getInitials(name: string) {
 
 export function getPlanLabel(plan?: string) {
   if (plan === "elite") return "Elite Member";
-  if (plan === "free") return "Free Member";
-  return "Pro Member";
+  if (plan === "pro") return "Pro Member";
+  return "Free Member";
 }

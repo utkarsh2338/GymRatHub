@@ -13,10 +13,11 @@ const UserSchema = new Schema({
   clerkId: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true },
   email: { type: String, required: true },
+  password: { type: String, select: false },
   avatar: { type: String, default: "" },
   bio: { type: String, default: "" },
   location: { type: String, default: "" },
-  plan: { type: String, enum: ["free", "pro", "elite"], default: "pro" },
+  plan: { type: String, enum: ["free", "pro", "elite"], default: "free" },
   fitnessGoal: {
     type: String,
     enum: ["lose_weight", "build_muscle", "improve_endurance", "stay_active"],

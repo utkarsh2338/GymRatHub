@@ -7,12 +7,6 @@ import UserChallengeModel from "../models/Challenge";
 import WorkoutSessionModel from "../models/WorkoutSession";
 import WorkoutTemplateModel from "../models/WorkoutTemplate";
 import PersonalRecordModel from "../models/PersonalRecord";
-import { createClerkClient } from "@clerk/backend";
-
-const clerkClient = createClerkClient({
-  publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-  secretKey: process.env.CLERK_SECRET_KEY,
-});
 
 export async function deleteAllUserData(clerkId: string) {
   await Promise.all([
@@ -30,12 +24,7 @@ export async function deleteAllUserData(clerkId: string) {
 
 export async function deleteUserAccount(clerkId: string) {
   await deleteAllUserData(clerkId);
-  try {
-    await clerkClient.users.deleteUser(clerkId);
-  } catch (err) {
-    console.error("Clerk deleteUser error:", err);
-    throw new Error("Failed to delete Clerk account.");
-  }
+  // Removed Clerk remote account deletion logic
 }
 
 export async function exportUserData(clerkId: string) {
@@ -69,8 +58,5 @@ export async function exportUserData(clerkId: string) {
 }
 
 export async function syncNameToClerk(clerkId: string, name: string) {
-  const parts = name.trim().split(/\s+/);
-  const firstName = parts[0] ?? "";
-  const lastName = parts.slice(1).join(" ");
-  await clerkClient.users.updateUser(clerkId, { firstName, lastName });
+  // Removed Clerk profile sync logic. No-op in local authentication mode.
 }

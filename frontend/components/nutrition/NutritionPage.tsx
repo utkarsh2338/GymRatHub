@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import AnimatedCounter from "@/components/shared/AnimatedCounter";
+import EmojiToIcon from "@/components/shared/EmojiToIcon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import type { FoodItem, Meal, NutritionDay } from "@/lib/types";
@@ -386,7 +387,9 @@ export default function NutritionPage() {
                     style={{ ...cardStyle, cursor: "pointer" }}
                     onClick={() => { setActiveMealId(meal.id); setActiveTab("meals"); }}
                   >
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>{meal.emoji}</div>
+                    <div style={{ marginBottom: 8, display: "flex", alignItems: "center" }}>
+                      <EmojiToIcon emoji={meal.emoji || "🥗"} size={26} color="#39E609" />
+                    </div>
                     <h4 style={{ fontWeight: 600, color: "#fff", fontSize: 14, marginBottom: 4 }}>{meal.name}</h4>
                     <p style={{ color: "#6b7280", fontSize: 12, marginBottom: 12 }}>{meal.time}</p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -423,7 +426,9 @@ export default function NutritionPage() {
             <motion.div key={meal.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} style={cardStyle}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 28 }}>{meal.emoji}</span>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <EmojiToIcon emoji={meal.emoji || "🥗"} size={26} color="#39E609" />
+                  </div>
                   <div>
                     <h4 style={{ fontWeight: 600, color: "#fff", fontSize: 14 }}>{meal.name}</h4>
                     <p style={{ color: "#6b7280", fontSize: 12 }}>{meal.time}</p>

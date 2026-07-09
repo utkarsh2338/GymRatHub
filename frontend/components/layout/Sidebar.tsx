@@ -17,7 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { useApiClient, useIsApiReady } from "@/lib/api-client";
 import { getInitials, getPlanLabel } from "@/lib/user-utils";

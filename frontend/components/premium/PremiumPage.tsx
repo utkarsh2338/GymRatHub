@@ -5,6 +5,8 @@ import { useRef, useState } from "react";
 import { Check, X, Crown, Star, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useApiClient, useIsApiReady } from "@/lib/api-client";
 
 const PLANS = [
   {
@@ -96,13 +98,29 @@ const TESTIMONIALS = [
   },
 ];
 
-function PricingCard({ plan, billing, index }: { plan: (typeof PLANS)[0]; billing: "monthly" | "annual"; index: number }) {
+function PricingCard({
+  plan,
+  billing,
+  index,
+  currentPlan,
+  onChangePlan,
+  isPending
+}: {
+  plan: (typeof PLANS)[0];
+  billing: "monthly" | "annual";
+  index: number;
+  currentPlan: string;
+  onChangePlan: (plan: string) => void;
+  isPending: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
   const isPro = plan.name === "Pro";
   const isElite = plan.name === "Elite";
   const price = plan.price[billing];
   const isAnnualSaving = billing === "annual" && price > 0;
+
+  const isActive = currentPlan === plan.name.toLowerCase();
 
   return (
     <motion.div
@@ -169,23 +187,22 @@ function PricingCard({ plan, billing, index }: { plan: (typeof PLANS)[0]; billin
       </ul>
 
       <motion.button
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() =>
-          plan.ctaType !== "ghost"
-            ? toast.success(`🎉 Upgrading to ${plan.name}!`)
-            : undefined
-        }
+        whileHover={isActive ? undefined : { scale: 1.03 }}
+        whileTap={isActive ? undefined : { scale: 0.97 }}
+        onClick={() => !isActive && onChangePlan(plan.name.toLowerCase())}
+        disabled={isActive || isPending}
         className={cn(
           "w-full py-3 rounded-xl text-sm font-bold transition-all",
-          plan.ctaType === "primary" && "btn-neon pulse-glow",
-          plan.ctaType === "elite" &&
-            "bg-gradient-to-r from-[#f97316] to-[#f59e0b] text-black",
-          plan.ctaType === "ghost" &&
-            "bg-[#111] border border-[#2a2a2a] text-gray-400 cursor-default"
+          isActive
+            ? "bg-[#111] border border-[#2a2a2a] text-gray-400 cursor-default"
+            : isPro
+            ? "btn-neon pulse-glow"
+            : isElite
+            ? "bg-gradient-to-r from-[#f97316] to-[#f59e0b] text-black"
+            : "bg-[#222] border border-[#2a2a2a] text-gray-300"
         )}
       >
-        {plan.cta}
+        {isActive ? "Current Plan" : isPending ? "Updating..." : plan.name === "Free" ? "Switch to Free" : plan.cta}
       </motion.button>
     </motion.div>
   );
@@ -193,6 +210,27 @@ function PricingCard({ plan, billing, index }: { plan: (typeof PLANS)[0]; billin
 
 export default function PremiumPage() {
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const api = useApiClient();
+  const isApiReady = useIsApiReady();
+  const queryClient = useQueryClient();
+
+  const { data: profile } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: () => api("/users/profile"),
+    enabled: isApiReady,
+  });
+
+  const currentPlan = profile?.plan ?? "free";
+
+  const planMutation = useMutation({
+    mutationFn: (plan: string) => api("/users/plan", { method: "PUT", body: JSON.stringify({ plan }) }),
+    onSuccess: (_, plan) => {
+      queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
+      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      toast.success(`Plan updated to ${plan}!`);
+    },
+    onError: () => toast.error("Could not update plan."),
+  });
 
   return (
     <div className="pt-24 pb-16">
@@ -242,7 +280,15 @@ export default function PremiumPage() {
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-6">
           {PLANS.map((plan, i) => (
-            <PricingCard key={plan.name} plan={plan} billing={billing} index={i} />
+            <PricingCard
+              key={plan.name}
+              plan={plan}
+              billing={billing}
+              index={i}
+              currentPlan={currentPlan}
+              onChangePlan={(p) => planMutation.mutate(p)}
+              isPending={planMutation.isPending}
+            />
           ))}
         </div>
 
@@ -336,12 +382,21 @@ export default function PremiumPage() {
             </p>
           </div>
           <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => toast.success("🎉 Starting your premium journey!")}
+            whileHover={currentPlan === "elite" ? undefined : { scale: 1.04 }}
+            whileTap={currentPlan === "elite" ? undefined : { scale: 0.97 }}
+            onClick={() => {
+              if (currentPlan === "free") {
+                planMutation.mutate("pro");
+              } else if (currentPlan === "pro") {
+                planMutation.mutate("elite");
+              } else {
+                toast.success("You are already on the Elite plan!");
+              }
+            }}
+            disabled={currentPlan === "elite" || planMutation.isPending}
             className="btn-neon flex items-center gap-2 px-8 py-3 text-sm font-bold shrink-0 pulse-glow"
           >
-            <Zap className="w-4 h-4" /> Upgrade Now
+            <Zap className="w-4 h-4" /> {planMutation.isPending ? "Updating..." : currentPlan === "free" ? "Upgrade to Pro" : currentPlan === "pro" ? "Upgrade to Elite" : "Active: Elite"}
           </motion.button>
         </motion.div>
       </div>

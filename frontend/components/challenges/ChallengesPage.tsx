@@ -2,23 +2,24 @@
 
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useRef, useState } from "react";
-import { Trophy, Users, Zap, CheckCircle } from "lucide-react";
+import { Trophy, Users, Zap, CheckCircle, Swords, Flame, Droplets, Activity, Dumbbell, Moon, Lock } from "lucide-react";
 import { mockLeaderboard } from "@/lib/mock-data";
 import type { Challenge } from "@/lib/types";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
+import EmojiToIcon from "@/components/shared/EmojiToIcon";
 
 /* ─────────────────────────────────────────────
    Static data
 ───────────────────────────────────────────── */
 const BADGES = [
-  { emoji: "⚔️", name: "Iron Warrior", earned: true, xp: 750, desc: "20 strength workouts" },
-  { emoji: "🔥", name: "7-Day Blaze", earned: true, xp: 200, desc: "7 consecutive days" },
-  { emoji: "💧", name: "Hydration King", earned: false, xp: 150, desc: "Hit water goal 10 days" },
-  { emoji: "🏃", name: "Speed Demon", earned: false, xp: 300, desc: "Complete 5 cardio sessions" },
-  { emoji: "💪", name: "Protein Pro", earned: true, xp: 250, desc: "Hit protein goal 7 days" },
-  { emoji: "🌙", name: "Night Owl", earned: false, xp: 100, desc: "Work out after 8pm, 5 times" },
+  { icon: Swords, name: "Iron Warrior", earned: true, xp: 750, desc: "20 strength workouts", color: "#f97316" },
+  { icon: Flame, name: "7-Day Blaze", earned: true, xp: 200, desc: "7 consecutive days", color: "#ef4444" },
+  { icon: Droplets, name: "Hydration King", earned: false, xp: 150, desc: "Hit water goal 10 days", color: "#38bdf8" },
+  { icon: Activity, name: "Speed Demon", earned: false, xp: 300, desc: "Complete 5 cardio sessions", color: "#a855f7" },
+  { icon: Dumbbell, name: "Protein Pro", earned: true, xp: 250, desc: "Hit protein goal 7 days", color: "#39E609" },
+  { icon: Moon, name: "Night Owl", earned: false, xp: 100, desc: "Work out after 8pm, 5 times", color: "#eab308" },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -94,7 +95,7 @@ function ChallengeCard({ challenge, index }: { challenge: Challenge; index: numb
               zIndex: 10,
             }}
           >
-            +{challenge.xpReward} XP ⚡
+            +{challenge.xpReward} XP
           </motion.div>
         )}
       </AnimatePresence>
@@ -102,7 +103,7 @@ function ChallengeCard({ challenge, index }: { challenge: Challenge; index: numb
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: "28px", lineHeight: 1, flexShrink: 0 }}>{challenge.badgeEmoji}</span>
+          <EmojiToIcon emoji={challenge.badgeEmoji || "🏆"} size={26} color={statusColor} style={{ flexShrink: 0 }} />
           <div style={{ minWidth: 0 }}>
             <h3 style={{ margin: 0, color: "#ffffff", fontWeight: 600, fontSize: "15px", lineHeight: 1.3 }}>
               {challenge.name}
@@ -230,7 +231,7 @@ function BadgeCard({ badge, index }: { badge: (typeof BADGES)[0]; index: number 
       onClick={() => {
         if (badge.earned) {
           setPopped(true);
-          toast.success(`🏅 ${badge.name} Badge!`);
+          toast.success(`Badge "${badge.name}" Earned!`);
           setTimeout(() => setPopped(false), 600);
         }
       }}
@@ -252,9 +253,13 @@ function BadgeCard({ badge, index }: { badge: (typeof BADGES)[0]; index: number 
       <motion.div
         animate={popped ? { scale: [1, 1.4, 1] } : {}}
         transition={{ duration: 0.4 }}
-        style={{ fontSize: "34px", lineHeight: 1, marginBottom: "4px" }}
+        style={{ marginBottom: "6px", display: "flex", alignItems: "center", justifyContent: "center" }}
       >
-        {badge.earned ? badge.emoji : "🔒"}
+        {badge.earned ? (
+          <badge.icon size={34} color={badge.color} />
+        ) : (
+          <Lock size={34} color="#6b7280" />
+        )}
       </motion.div>
       <p style={{ margin: 0, color: "#ffffff", fontSize: "12px", fontWeight: 600, lineHeight: 1.3 }}>
         {badge.name}

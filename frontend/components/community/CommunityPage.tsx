@@ -14,6 +14,8 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  Camera,
+  Dumbbell,
 } from "lucide-react";
 import { mockLeaderboard, mockChallenges } from "@/lib/mock-data";
 import type { Post } from "@/lib/types";
@@ -169,7 +171,7 @@ function PostCard({ post, index }: { post: Post; index: number }) {
                     color: "#f97316",
                   }}
                 >
-                  🏆 Achievement
+                  <Trophy size={11} style={{ display: "inline-block", marginRight: 4, verticalAlign: "middle" }} /> Achievement
                 </span>
               )}
             </div>
@@ -561,9 +563,13 @@ export default function CommunityPage() {
                 }}
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {["📸 Photo", "🏆 Achievement", "💪 PR"].map((item) => (
+                  {[
+                    { label: "Photo", icon: Camera },
+                    { label: "Achievement", icon: Trophy },
+                    { label: "PR", icon: Dumbbell },
+                  ].map((item) => (
                     <button
-                      key={item}
+                      key={item.label}
                       style={{
                         fontSize: 12,
                         color: "#9ca3af",
@@ -573,6 +579,9 @@ export default function CommunityPage() {
                         borderRadius: 8,
                         cursor: "pointer",
                         transition: "color 0.15s",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                       onMouseOver={(e) =>
                         ((e.currentTarget as HTMLButtonElement).style.color =
@@ -583,7 +592,8 @@ export default function CommunityPage() {
                           "#9ca3af")
                       }
                     >
-                      {item}
+                      <item.icon size={12} />
+                      {item.label}
                     </button>
                   ))}
                 </div>

@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import QueryProvider from "@/components/providers/QueryProvider";
 import AppearanceProvider from "@/components/providers/AppearanceProvider";
-import { ClerkProvider } from "@clerk/nextjs";
+import { AuthProvider } from "@/lib/auth-context";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -47,16 +47,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider
-      signInUrl="/auth"
-      signUpUrl="/auth"
-      signInForceRedirectUrl="/dashboard"
-      signUpForceRedirectUrl="/dashboard"
-      signInFallbackRedirectUrl="/dashboard"
-      signUpFallbackRedirectUrl="/dashboard"
-    >
+    <AuthProvider>
       <html lang="en" className={`${inter.variable} ${outfit.variable} dark`} suppressHydrationWarning>
-        <body className="bg-[#0a0a0a] text-white font-sans antialiased">
+        <body className="bg-[#0a0a0a] text-white font-sans antialiased" suppressHydrationWarning>
           <QueryProvider>
             <AppearanceProvider>
               {children}
@@ -75,6 +68,6 @@ export default function RootLayout({
           </QueryProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </AuthProvider>
   );
 }

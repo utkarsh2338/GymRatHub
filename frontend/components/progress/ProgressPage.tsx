@@ -11,7 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Scale, Trophy, Flame } from "lucide-react";
+import { TrendingUp, Scale, Trophy, Flame, Dumbbell, Activity, Target, Lightbulb } from "lucide-react";
 import type { ProgressAnalytics, PersonalRecord } from "@/lib/types";
 import {
   buildWeightProgressFromStats,
@@ -69,13 +69,13 @@ const tooltipStyle = {
 function PRCard({ pr, index }: { pr: PersonalRecord; index: number }) {
   const [celebrating, setCelebrating] = useState(false);
 
-  const exerciseEmojis: Record<string, string> = {
-    "Barbell Bench Press": "🏋️",
-    "Back Squat": "🦵",
-    Deadlift: "💀",
-    "Overhead Press": "☝️",
+  const exerciseIcons: Record<string, React.ComponentType<any>> = {
+    "Barbell Bench Press": Dumbbell,
+    "Back Squat": Activity,
+    Deadlift: Flame,
+    "Overhead Press": Trophy,
   };
-  const emoji = exerciseEmojis[pr.exercise] ?? "🎯";
+  const IconComponent = exerciseIcons[pr.exercise] ?? Target;
 
   return (
     <motion.div
@@ -146,11 +146,10 @@ function PRCard({ pr, index }: { pr: PersonalRecord; index: number }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 22,
             flexShrink: 0,
           }}
         >
-          {emoji}
+          <IconComponent size={20} color={pr.isNew ? T.green : T.orange} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
@@ -316,6 +315,13 @@ export default function ProgressPage() {
       }));
   }, [analytics]);
 
+  const { benchPR, squatPR, deadliftPR } = useMemo(() => {
+    const bench = displayPRs.find((p) => p.exercise.toLowerCase().includes("bench"))?.weight ?? 0;
+    const squat = displayPRs.find((p) => p.exercise.toLowerCase().includes("squat"))?.weight ?? 0;
+    const deadlift = displayPRs.find((p) => p.exercise.toLowerCase().includes("deadlift"))?.weight ?? 0;
+    return { benchPR: bench, squatPR: squat, deadliftPR: deadlift };
+  }, [displayPRs]);
+
   const volumeChartData = useMemo(
     () => analytics?.volumeByWeek ?? [],
     [analytics]
@@ -324,7 +330,7 @@ export default function ProgressPage() {
   const hasLoggedVolume = volumeChartData.some((d) => d.volume > 0);
   const strengthChartData: Array<Record<string, string | number>> = hasLoggedVolume
     ? volumeChartData.map((d) => ({ week: d.week, volume: d.volume }))
-    : STRENGTH_DATA.map((d) => ({ ...d }));
+    : [];
 
   const targetMutation = useMutation({
     mutationFn: (body: {
@@ -360,10 +366,27 @@ export default function ProgressPage() {
     [stats.weight, stats.weightGoal, userProfile?.startingWeight, userProfile?.fitnessGoal]
   );
 
-  const weightChartData = useMemo(
-    () => buildWeightProgressFromStats(progressInput),
-    [progressInput]
-  );
+  const weightChartData = useMemo(() => {
+    if (!userProfile) return [];
+    const start = userProfile.startingWeight ?? stats.weight;
+    const current = stats.weight;
+
+    const workouts = [...(analytics?.consistency ?? [])]
+      .filter((w) => w.completed)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (workouts.length === 0) {
+      return [];
+    }
+
+    return workouts.map((w, index) => {
+      const t = workouts.length > 1 ? index / (workouts.length - 1) : 1;
+      const weight = Math.round((start + (current - start) * t) * 10) / 10;
+      const dateObj = new Date(w.date);
+      const label = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+      return { week: label, weight };
+    });
+  }, [analytics?.consistency, userProfile, stats.weight]);
 
   const weightDelta = useMemo(
     () => getWeightProgressDelta(progressInput),
@@ -777,76 +800,96 @@ export default function ProgressPage() {
 
               {/* Chart */}
               <div style={{ width: "100%", height: 280 }}>
-                {inView && (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={weightChartData}
-                      margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="weightGrad"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={T.green}
-                            stopOpacity={0.28}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={T.green}
-                            stopOpacity={0.02}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={T.chartGrid}
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="week"
-                        tick={{ fill: T.textMuted, fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tick={{ fill: T.textMuted, fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                        domain={["dataMin - 2", "dataMax + 2"]}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        itemStyle={{ color: T.green }}
-                        labelStyle={{ color: T.textSecondary, marginBottom: 4 }}
-                        formatter={(v) => [`${v} kg`, "Weight"]}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="weight"
-                        stroke={T.green}
-                        strokeWidth={2.5}
-                        fill="url(#weightGrad)"
-                        animationDuration={1400}
-                        dot={{
-                          fill: T.green,
-                          r: 4,
-                          strokeWidth: 0,
-                        }}
-                        activeDot={{
-                          r: 6,
-                          fill: T.green,
-                          stroke: "#0a0a0a",
-                          strokeWidth: 2,
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                {weightChartData.length === 0 ? (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: `1px dashed ${T.border}`,
+                      borderRadius: 12,
+                      gap: 8,
+                    }}
+                  >
+                    <Scale size={28} color={T.textMuted} />
+                    <p style={{ color: T.textMuted, fontSize: 13, margin: 0 }}>
+                      Log workouts to start tracking your weight progress.
+                    </p>
+                  </div>
+                ) : (
+                  inView && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={weightChartData}
+                        margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="weightGrad"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={T.green}
+                              stopOpacity={0.28}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={T.green}
+                              stopOpacity={0.02}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={T.chartGrid}
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="week"
+                          tick={{ fill: T.textMuted, fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fill: T.textMuted, fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                          domain={["dataMin - 2", "dataMax + 2"]}
+                        />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          itemStyle={{ color: T.green }}
+                          labelStyle={{ color: T.textSecondary, marginBottom: 4 }}
+                          formatter={(v) => [`${v} kg`, "Weight"]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="weight"
+                          stroke={T.green}
+                          strokeWidth={2.5}
+                          fill="url(#weightGrad)"
+                          animationDuration={1400}
+                          dot={{
+                            fill: T.green,
+                            r: 4,
+                            strokeWidth: 0,
+                          }}
+                          activeDot={{
+                            r: 6,
+                            fill: T.green,
+                            stroke: "#0a0a0a",
+                            strokeWidth: 2,
+                          }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )
                 )}
               </div>
 
@@ -862,9 +905,9 @@ export default function ProgressPage() {
                 }}
               >
                 {[
-                  { label: "Current", value: "88 kg", color: T.green },
-                  { label: "Goal", value: "78 kg", color: T.blue },
-                  { label: "Remaining", value: "10 kg", color: T.orange },
+                  { label: "Current", value: `${stats.weight || 0} kg`, color: T.green },
+                  { label: "Goal", value: `${stats.weightGoal || 0} kg`, color: T.blue },
+                  { label: "Remaining", value: `${Math.max(0, Math.round(Math.abs((stats.weight || 0) - (stats.weightGoal || 0)) * 10) / 10)} kg`, color: T.orange },
                 ].map((s) => (
                   <div key={s.label}>
                     <p
@@ -939,141 +982,142 @@ export default function ProgressPage() {
               </div>
 
               {/* Legend */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 20,
-                  marginBottom: 16,
-                  flexWrap: "wrap",
-                }}
-              >
-                {(hasLoggedVolume
-                  ? [{ label: "Volume", color: T.green }]
-                  : [
-                      { label: "Bench", color: T.green },
-                      { label: "Squat", color: T.blue },
-                      { label: "Deadlift", color: T.orange },
-                    ]
-                ).map(({ label, color }) => (
-                  <div
-                    key={label}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 7,
-                    }}
-                  >
+              {hasLoggedVolume && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 20,
+                    marginBottom: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {[{ label: "Volume", color: T.green }].map(({ label, color }) => (
                     <div
+                      key={label}
                       style={{
-                        width: 20,
-                        height: 3,
-                        borderRadius: 2,
-                        background: color,
-                      }}
-                    />
-                    <span
-                      style={{
-                        color: T.textSecondary,
-                        fontSize: 12,
-                        fontWeight: 500,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
                       }}
                     >
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      <div
+                        style={{
+                          width: 20,
+                          height: 3,
+                          borderRadius: 2,
+                          background: color,
+                        }}
+                      />
+                      <span
+                        style={{
+                          color: T.textSecondary,
+                          fontSize: 12,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Chart */}
               <div style={{ width: "100%", height: 280 }}>
-                {inView && (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={strengthChartData}
-                      margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
-                    >
-                      <defs>
-                        {(hasLoggedVolume
-                          ? [{ key: "volume", color: T.green }]
-                          : [
-                              { key: "bench", color: T.green },
-                              { key: "squat", color: T.blue },
-                              { key: "deadlift", color: T.orange },
-                            ]
-                        ).map(({ key, color }) => (
-                          <linearGradient
-                            key={key}
-                            id={`grad-${key}`}
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="5%"
-                              stopColor={color}
-                              stopOpacity={0.2}
-                            />
-                            <stop
-                              offset="95%"
-                              stopColor={color}
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        ))}
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={T.chartGrid}
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="week"
-                        tick={{ fill: T.textMuted, fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tick={{ fill: T.textMuted, fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelStyle={{ color: T.textSecondary, marginBottom: 4 }}
-                        formatter={(v, name) => [
-                          `${v} kg`,
-                          String(name).charAt(0).toUpperCase() +
-                            String(name).slice(1),
-                        ]}
-                      />
-                      {(hasLoggedVolume
-                        ? [{ key: "volume", color: T.green }]
-                        : [
-                            { key: "bench", color: T.green },
-                            { key: "squat", color: T.blue },
-                            { key: "deadlift", color: T.orange },
-                          ]
-                      ).map(({ key, color }) => (
-                        <Area
-                          key={key}
-                          type="monotone"
-                          dataKey={key}
-                          stroke={color}
-                          strokeWidth={2}
-                          fill={`url(#grad-${key})`}
-                          animationDuration={1400}
-                          dot={false}
-                          activeDot={{
-                            r: 5,
-                            fill: color,
-                            stroke: "#0a0a0a",
-                            strokeWidth: 2,
-                          }}
+                {!hasLoggedVolume ? (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: `1px dashed ${T.border}`,
+                      borderRadius: 12,
+                      gap: 8,
+                    }}
+                  >
+                    <TrendingUp size={28} color={T.textMuted} />
+                    <p style={{ color: T.textMuted, fontSize: 13, margin: 0 }}>
+                      Complete logged workouts to see your strength volume trends.
+                    </p>
+                  </div>
+                ) : (
+                  inView && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={strengthChartData}
+                        margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+                      >
+                        <defs>
+                          {[{ key: "volume", color: T.green }].map(({ key, color }) => (
+                            <linearGradient
+                              key={key}
+                              id={`grad-${key}`}
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor={color}
+                                stopOpacity={0.2}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor={color}
+                                stopOpacity={0}
+                              />
+                            </linearGradient>
+                          ))}
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={T.chartGrid}
+                          vertical={false}
                         />
-                      ))}
-                    </AreaChart>
-                  </ResponsiveContainer>
+                        <XAxis
+                          dataKey="week"
+                          tick={{ fill: T.textMuted, fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fill: T.textMuted, fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          labelStyle={{ color: T.textSecondary, marginBottom: 4 }}
+                          formatter={(v, name) => [
+                            `${v} kg`,
+                            String(name).charAt(0).toUpperCase() +
+                              String(name).slice(1),
+                          ]}
+                        />
+                        {[{ key: "volume", color: T.green }].map(({ key, color }) => (
+                          <Area
+                            key={key}
+                            type="monotone"
+                            dataKey={key}
+                            stroke={color}
+                            strokeWidth={2}
+                            fill={`url(#grad-${key})`}
+                            animationDuration={1400}
+                            dot={false}
+                            activeDot={{
+                              r: 5,
+                              fill: color,
+                              stroke: "#0a0a0a",
+                              strokeWidth: 2,
+                            }}
+                          />
+                        ))}
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )
                 )}
               </div>
 
@@ -1089,9 +1133,9 @@ export default function ProgressPage() {
                 }}
               >
                 {[
-                  { label: "Bench", value: "120 kg", color: T.green },
-                  { label: "Squat", value: "160 kg", color: T.blue },
-                  { label: "Deadlift", value: "200 kg", color: T.orange },
+                  { label: "Bench", value: benchPR > 0 ? `${benchPR} kg` : "— kg", color: T.green },
+                  { label: "Squat", value: squatPR > 0 ? `${squatPR} kg` : "— kg", color: T.blue },
+                  { label: "Deadlift", value: deadliftPR > 0 ? `${deadliftPR} kg` : "— kg", color: T.orange },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -1224,7 +1268,7 @@ export default function ProgressPage() {
                   gap: 10,
                 }}
               >
-                <span style={{ fontSize: 18 }}>💡</span>
+                <Lightbulb size={18} color={T.orange} style={{ flexShrink: 0 }} />
                 <p
                   style={{
                     color: T.textMuted,

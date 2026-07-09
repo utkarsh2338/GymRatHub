@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Target, Scale } from "lucide-react";
+import { Target, Scale, Dumbbell, Flame, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { FitnessGoal } from "@/lib/types";
 
-const GOALS: { id: FitnessGoal; label: string; emoji: string }[] = [
-  { id: "lose_weight", label: "Lose Weight", emoji: "⚖️" },
-  { id: "build_muscle", label: "Build Muscle", emoji: "💪" },
-  { id: "improve_endurance", label: "Endurance", emoji: "🏃" },
-  { id: "stay_active", label: "Stay Active", emoji: "✨" },
+const GOALS: { id: FitnessGoal; label: string; icon: React.ComponentType<any> }[] = [
+  { id: "lose_weight", label: "Lose Weight", icon: Scale },
+  { id: "build_muscle", label: "Build Muscle", icon: Dumbbell },
+  { id: "improve_endurance", label: "Endurance", icon: Flame },
+  { id: "stay_active", label: "Stay Active", icon: Sparkles },
 ];
 
 const inputStyle: React.CSSProperties = {
@@ -132,7 +132,7 @@ export default function ProgressTargetSetup({ onSave, isSaving }: Props) {
                   fontWeight: 500,
                 }}
               >
-                <span>{g.emoji}</span> {g.label}
+                <g.icon size={16} color={fitnessGoal === g.id ? "#39E609" : "#9ca3af"} style={{ flexShrink: 0 }} /> {g.label}
               </button>
             ))}
           </div>

@@ -2,13 +2,14 @@
 
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
+import { Users, Zap, Flame, Star } from "lucide-react";
 import AnimatedCounter from "@/components/shared/AnimatedCounter";
 
 const STATS = [
-  { emoji: "👥", value: 128, suffix: "K+", label: "Active Members", color: "#39E609" },
-  { emoji: "⚡", value: 2.4, suffix: "M", label: "Workouts Completed", color: "#f97316", decimals: 1 },
-  { emoji: "🔥", value: 980, suffix: "M+", label: "Calories Burned", color: "#38bdf8" },
-  { emoji: "⭐", value: 4.7, suffix: "/5", label: "Average Rating", color: "#a855f7", decimals: 1 },
+  { icon: Users, value: 128, suffix: "K+", label: "Active Members", color: "#39E609" },
+  { icon: Zap, value: 2.4, suffix: "M", label: "Workouts Completed", color: "#f97316", decimals: 1 },
+  { icon: Flame, value: 980, suffix: "M+", label: "Calories Burned", color: "#38bdf8" },
+  { icon: Star, value: 4.7, suffix: "/5", label: "Average Rating", color: "#a855f7", decimals: 1 },
 ];
 
 export default function StatsBar() {
@@ -52,11 +53,10 @@ export default function StatsBar() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 24,
                 marginBottom: 4,
               }}
             >
-              {stat.emoji}
+              <stat.icon size={24} color={stat.color} />
             </div>
             <div
               style={{

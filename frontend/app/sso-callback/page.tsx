@@ -1,11 +1,18 @@
-import SSOCallbackClient from "@/components/auth/SSOCallbackClient";
+"use client";
 
-// This page relies on Clerk's client runtime (AuthenticateWithRedirectCallback),
-// which needs a live <ClerkProvider>. Force dynamic rendering so it is NEVER
-// statically prerendered at build time — that prerender is what crashed the
-// Vercel build when the Clerk publishable key was missing/invalid.
-export const dynamic = "force-dynamic";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SSOCallbackPage() {
-  return <SSOCallbackClient />;
+  const router = useRouter();
+  
+  useEffect(() => {
+    router.replace("/auth");
+  }, [router]);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p style={{ color: "#888" }}>Redirecting to auth...</p>
+    </div>
+  );
 }

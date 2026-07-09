@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk } from "@/lib/auth-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, useIsApiReady } from "@/lib/api-client";
 import { DEFAULT_PRIVACY, type PrivacyPreferences, type UserPreferencesResponse } from "@/lib/settings-types";

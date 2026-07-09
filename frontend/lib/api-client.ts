@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth-context";
 
 export function useApiClient() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
