@@ -16,5 +16,7 @@ const PlannerDaySchema = new Schema({
   workouts: [PlannerWorkoutSchema],
 }, { timestamps: true });
 
+PlannerDaySchema.index({ clerkId: 1, date: 1 });
+
 export const PlannerDayModel = model("PlannerDay", PlannerDaySchema);
 export default PlannerDayModel;

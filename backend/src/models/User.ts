@@ -12,7 +12,7 @@ const UserStatsSchema = new Schema({
 const UserSchema = new Schema({
   clerkId: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, required: true, unique: true, index: true },
   password: { type: String, select: false },
   avatar: { type: String, default: "" },
   bio: { type: String, default: "" },
@@ -27,7 +27,7 @@ const UserSchema = new Schema({
   startingWeight: { type: Number, default: null },
   joinedAt: { type: String, default: () => new Date().toISOString().split("T")[0] },
   stats: { type: UserStatsSchema, default: () => ({}) },
-  xp: { type: Number, default: 0 },
+  xp: { type: Number, default: 0, index: true },
   level: { type: Number, default: 1 },
   lastWorkoutDate: { type: String, default: null },
   activeWorkoutTemplateId: { type: String, default: null },

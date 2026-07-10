@@ -1,10 +1,12 @@
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, useClerk } from "@/lib/auth-context";
 
 export function useApiClient() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
-  const baseUrl =
+  const { signOut } = useClerk();
+  const rawBaseUrl =
     process.env.NEXT_PUBLIC_API_URL ||
     (process.env.NODE_ENV === "development" ? "http://localhost:5000/api" : "");
+  const baseUrl = rawBaseUrl.replace(/\/+$/, "");
 
   const fetcher = async (path: string, options: RequestInit = {}) => {
     try {
@@ -37,6 +39,11 @@ export function useApiClient() {
       });
 
       if (!res.ok) {
+        if (res.status === 401) {
+          console.warn("[API Client] 401 Unauthorized received. Clearing session and redirecting to /auth.");
+          await signOut({ redirectUrl: "/auth" });
+          throw new Error("Session expired. Please sign in again.");
+        }
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
       }

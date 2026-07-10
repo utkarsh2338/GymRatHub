@@ -394,3 +394,28 @@ export interface WorkoutBlock {
   color: string;
   status?: "planned" | "done" | "rest";
 }
+
+// ─── Plateau Insights ────────────────────────────────────────────────────────
+export type PlateauSeverity = "none" | "mild" | "moderate" | "severe";
+
+export type PlateauType =
+  | "strength_stall"
+  | "volume_stall"
+  | "inconsistent"
+  | "regressing";
+
+export interface PlateauInsight {
+  exerciseName: string;
+  category: string;
+  type: PlateauType;
+  severity: PlateauSeverity;
+  sessionsAnalyzed: number;
+  windowDays: number;
+  best1RM: number;
+  latest1RM: number;
+  percentChange: number;
+  recommendation: {
+    action: "deload" | "rep_range_shift" | "exercise_swap" | "increase_frequency" | "stay_the_course";
+    detail: string;
+  };
+}

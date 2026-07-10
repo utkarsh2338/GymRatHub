@@ -90,6 +90,29 @@ export async function detectAndSavePRs(
 ): Promise<DetectedPR[]> {
   const newPRs: DetectedPR[] = [];
 
+  // 1. Gather all exercise names with completed reps
+  const exerciseNames = exercises
+    .filter((ex) => ex.loggedSets.some((s) => s.completed && (s.weightKg ?? 0) > 0))
+    .map((ex) => ex.name);
+
+  if (exerciseNames.length === 0) {
+    return [];
+  }
+
+  // 2. Fetch all existing PRs for these exercises (plus _session_) in one batch query
+  const existingPRs = await PersonalRecordModel.find({
+    clerkId,
+    exerciseName: { $in: [...exerciseNames, "_session_"] },
+  }).lean();
+
+  // Create a lookup map: "exercisename_recordtype" -> PR doc
+  const prMap = new Map<string, typeof existingPRs[number]>();
+  for (const pr of existingPRs) {
+    const key = `${pr.exerciseName.toLowerCase()}_${pr.recordType}`;
+    prMap.set(key, pr);
+  }
+
+  // 3. Process each exercise
   for (const ex of exercises) {
     const completed = ex.loggedSets.filter((s) => s.completed && (s.weightKg ?? 0) > 0);
     if (!completed.length) continue;
@@ -101,11 +124,7 @@ export async function detectAndSavePRs(
     const maxRepsAtWeight = maxWeightSet.reps ?? 0;
     const vol = exerciseVolume(ex.loggedSets);
 
-    const existingMaxWeight = await PersonalRecordModel.findOne({
-      clerkId,
-      exerciseName: ex.name,
-      recordType: "max_weight",
-    }).sort({ weightKg: -1 });
+    const existingMaxWeight = prMap.get(`${ex.name.toLowerCase()}_max_weight`);
 
     if (!existingMaxWeight || maxWeight > existingMaxWeight.weightKg) {
       await PersonalRecordModel.findOneAndUpdate(
@@ -133,11 +152,7 @@ export async function detectAndSavePRs(
       });
     }
 
-    const existingVolume = await PersonalRecordModel.findOne({
-      clerkId,
-      exerciseName: ex.name,
-      recordType: "max_volume",
-    }).sort({ volumeKg: -1 });
+    const existingVolume = prMap.get(`${ex.name.toLowerCase()}_max_volume`);
 
     if (!existingVolume || vol > existingVolume.volumeKg) {
       await PersonalRecordModel.findOneAndUpdate(
@@ -167,11 +182,7 @@ export async function detectAndSavePRs(
   }
 
   const sessionVol = sessionTotalVolume(exercises);
-  const existingSessionVol = await PersonalRecordModel.findOne({
-    clerkId,
-    exerciseName: "_session_",
-    recordType: "session_volume",
-  }).sort({ volumeKg: -1 });
+  const existingSessionVol = prMap.get("_session__session_volume");
 
   if (!existingSessionVol || sessionVol > existingSessionVol.volumeKg) {
     await PersonalRecordModel.findOneAndUpdate(

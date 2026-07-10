@@ -2,9 +2,50 @@
 
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import dynamic from "next/dynamic";
 import KPICard from "./KPICard";
-import WeightProgressChart from "./WeightProgressChart";
-import WeeklyActivityChart from "./WeeklyActivityChart";
+
+const WeightProgressChart = dynamic(() => import("./WeightProgressChart"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: 350,
+        background: "#0d0d0d",
+        border: "1px solid #1f1f1f",
+        borderRadius: 16,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#4b5563",
+        fontSize: 14,
+      }}
+    >
+      Loading weight progress...
+    </div>
+  ),
+});
+
+const WeeklyActivityChart = dynamic(() => import("./WeeklyActivityChart"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: 350,
+        background: "#0d0d0d",
+        border: "1px solid #1f1f1f",
+        borderRadius: 16,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#4b5563",
+        fontSize: 14,
+      }}
+    >
+      Loading activity metrics...
+    </div>
+  ),
+});
 import DashboardWorkoutSection from "./DashboardWorkoutSection";
 import {
   buildWeightProgressFromStats,

@@ -37,9 +37,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
 
-  const baseUrl =
+  const rawBaseUrl =
     process.env.NEXT_PUBLIC_API_URL ||
     (process.env.NODE_ENV === "development" ? "http://localhost:5000/api" : "");
+  const baseUrl = rawBaseUrl.replace(/\/+$/, "");
 
   const mapUserResponse = (userData: any): UserInfo => {
     const names = (userData.name || "Athlete").split(" ");

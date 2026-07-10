@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
+import "@/lib/env";
 import { Toaster } from "sonner";
 import QueryProvider from "@/components/providers/QueryProvider";
 import AppearanceProvider from "@/components/providers/AppearanceProvider";
@@ -47,9 +48,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthProvider>
-      <html lang="en" className={`${inter.variable} ${outfit.variable} dark`} suppressHydrationWarning>
-        <body className="bg-[#0a0a0a] text-white font-sans antialiased" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${outfit.variable} dark`} suppressHydrationWarning>
+      <body className="bg-[#0a0a0a] text-white font-sans antialiased" suppressHydrationWarning>
+        <AuthProvider>
           <QueryProvider>
             <AppearanceProvider>
               {children}
@@ -66,8 +67,8 @@ export default function RootLayout({
               }}
             />
           </QueryProvider>
-        </body>
-      </html>
-    </AuthProvider>
+        </AuthProvider>
+      </body>
+    </html>
   );
 }

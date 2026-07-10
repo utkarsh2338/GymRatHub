@@ -4,10 +4,11 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import axios from "axios";
 import UserModel from "../models/User";
+import { env } from "../config/env";
 import { FRESH_USER_STATS } from "../constants/freshUser";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+const JWT_SECRET = env.JWT_SECRET;
 
 // POST /api/auth/register
 router.post("/register", async (req: Request, res: Response) => {

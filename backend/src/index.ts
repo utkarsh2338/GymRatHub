@@ -2,6 +2,9 @@ import dotenv from "dotenv";
 // Load environment variables before importing other modules
 dotenv.config();
 
+// Validate environment variables
+import { env } from "./config/env";
+
 import express from "express";
 import cors from "cors";
 import { connectDB } from "./config/db";
@@ -10,7 +13,7 @@ import authRouter from "./routes/auth";
 import { requireAuth } from "./middleware/auth";
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = env.PORT;
 
 // Connect to MongoDB
 connectDB();

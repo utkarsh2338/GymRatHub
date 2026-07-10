@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import UserModel from "../models/User";
+import { env } from "../config/env";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+const JWT_SECRET = env.JWT_SECRET;
 
 export interface AuthenticatedRequest extends Request {
   auth?: {

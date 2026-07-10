@@ -67,6 +67,7 @@ const WorkoutSessionSchema = new Schema(
 
 WorkoutSessionSchema.index({ clerkId: 1, status: 1 });
 WorkoutSessionSchema.index({ clerkId: 1, completedAt: -1 });
+WorkoutSessionSchema.index({ clerkId: 1, status: 1, completedAt: -1 });
 
 export const WorkoutSessionModel = model("WorkoutSession", WorkoutSessionSchema);
 export default WorkoutSessionModel;

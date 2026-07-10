@@ -45,5 +45,7 @@ const NutritionSchema = new Schema({
   meals: [MealSchema],
 }, { timestamps: true });
 
+NutritionSchema.index({ clerkId: 1, date: 1 });
+
 export const NutritionModel = model("Nutrition", NutritionSchema);
 export default NutritionModel;
