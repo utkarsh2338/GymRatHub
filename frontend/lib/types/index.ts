@@ -184,6 +184,7 @@ export interface SessionExercise {
   status: "pending" | "in_progress" | "completed";
   order: number;
   supersetGroupId?: string | null;
+  restSeconds?: number;
 }
 
 export interface WorkoutSession {
@@ -213,6 +214,7 @@ export interface WorkoutTemplateDay {
     targetReps: string;
     order?: number;
     supersetGroupId?: string | null;
+    restSeconds?: number;
   }[];
 }
 
@@ -225,6 +227,7 @@ export interface TemplateExerciseItem {
   targetReps: string;
   order: number;
   supersetGroupId?: string | null;
+  restSeconds?: number;
 }
 
 export interface WorkoutTemplate {

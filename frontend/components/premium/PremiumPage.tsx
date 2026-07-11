@@ -232,6 +232,22 @@ export default function PremiumPage() {
     onError: () => toast.error("Could not update plan."),
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: (args: { plan: string; interval: string }) =>
+      api("/payments/create-checkout-session", {
+        method: "POST",
+        body: JSON.stringify(args),
+      }),
+    onSuccess: (data: { url: string }) => {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("Could not initialize Stripe Checkout.");
+      }
+    },
+    onError: () => toast.error("Stripe Checkout failed to initialize."),
+  });
+
   return (
     <div className="pt-24 pb-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
@@ -286,8 +302,14 @@ export default function PremiumPage() {
               billing={billing}
               index={i}
               currentPlan={currentPlan}
-              onChangePlan={(p) => planMutation.mutate(p)}
-              isPending={planMutation.isPending}
+              onChangePlan={(p) => {
+                if (p === "free") {
+                  planMutation.mutate(p);
+                } else {
+                  checkoutMutation.mutate({ plan: p, interval: billing });
+                }
+              }}
+              isPending={planMutation.isPending || checkoutMutation.isPending}
             />
           ))}
         </div>

@@ -11,8 +11,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Scale, Trophy, Flame, Dumbbell, Activity, Target, Lightbulb } from "lucide-react";
+import { TrendingUp, Scale, Trophy, Flame, Dumbbell, Activity, Target, Lightbulb, Camera } from "lucide-react";
 import type { ProgressAnalytics, PersonalRecord } from "@/lib/types";
+import Link from "next/link";
 import {
   buildWeightProgressFromStats,
   getWeightProgressDelta,
@@ -523,31 +524,52 @@ export default function ProgressPage() {
         }}
       >
         {/* ── Header ── */}
-        <div>
-          <h1
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", width: "100%" }}>
+          <div>
+            <h1
+              style={{
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 800,
+                fontSize: "clamp(22px, 4vw, 30px)",
+                color: T.textPrimary,
+                margin: 0,
+                lineHeight: 1.2,
+              }}
+            >
+              Progress Tracking
+            </h1>
+            <p
+              style={{
+                color: T.textMuted,
+                fontSize: 14,
+                marginTop: 4,
+                marginBottom: 0,
+              }}
+            >
+              {userProfile?.targetConfigured
+                ? `Tracking toward ${stats.weightGoal} kg · ${goalPercent}% complete`
+                : "Set your target to unlock personalized progress"}
+            </p>
+          </div>
+          <Link
+            href="/progress/photos"
             style={{
-              fontFamily: "Outfit, sans-serif",
-              fontWeight: 800,
-              fontSize: "clamp(22px, 4vw, 30px)",
-              color: T.textPrimary,
-              margin: 0,
-              lineHeight: 1.2,
+              background: T.green + "18",
+              border: `1px solid ${T.green}40`,
+              color: T.green,
+              fontSize: 12,
+              fontWeight: "bold",
+              padding: "8px 16px",
+              borderRadius: 8,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "all 0.2s",
             }}
           >
-            Progress Tracking
-          </h1>
-          <p
-            style={{
-              color: T.textMuted,
-              fontSize: 14,
-              marginTop: 4,
-              marginBottom: 0,
-            }}
-          >
-            {userProfile?.targetConfigured
-              ? `Tracking toward ${stats.weightGoal} kg · ${goalPercent}% complete`
-              : "Set your target to unlock personalized progress"}
-          </p>
+            <Camera className="w-4 h-4" /> Progress Photos
+          </Link>
         </div>
 
         {needsTarget && (

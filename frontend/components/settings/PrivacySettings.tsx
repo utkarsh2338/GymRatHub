@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { useClerk } from "@/lib/auth-context";
+import { useClerk, useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, useIsApiReady } from "@/lib/api-client";
 import { DEFAULT_PRIVACY, type PrivacyPreferences, type UserPreferencesResponse } from "@/lib/settings-types";
@@ -14,6 +14,7 @@ export default function PrivacySettings() {
   const isApiReady = useIsApiReady();
   const queryClient = useQueryClient();
   const { openUserProfile } = useClerk();
+  const { getToken } = useAuth();
   const [prefs, setPrefs] = useState<PrivacyPreferences>(DEFAULT_PRIVACY);
   const [exporting, setExporting] = useState(false);
 
@@ -23,19 +24,24 @@ export default function PrivacySettings() {
     enabled: isApiReady,
   });
 
-  useEffect(() => {
-    if (data?.privacy) setPrefs({ ...DEFAULT_PRIVACY, ...data.privacy });
-  }, [data]);
-
   const saveMutation = useMutation({
     mutationFn: (body: Partial<PrivacyPreferences>) =>
-      api("/users/preferences/privacy", { method: "PUT", body: JSON.stringify(body) }),
+      api("/users/preferences/privacy", {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
-      toast.success("Privacy settings saved");
+      toast.success("Privacy preferences updated!");
     },
-    onError: () => toast.error("Failed to save privacy settings."),
+    onError: () => toast.error("Could not update privacy preferences."),
   });
+
+  useEffect(() => {
+    if (data?.privacy) {
+      setPrefs(data.privacy);
+    }
+  }, [data]);
 
   const update = useCallback(
     (key: keyof PrivacyPreferences, value: boolean) => {
@@ -48,20 +54,34 @@ export default function PrivacySettings() {
     [saveMutation]
   );
 
-  const handleExportViaApi = async () => {
+  const handleExportFile = async (format: "csv" | "pdf" | "json") => {
     setExporting(true);
     try {
-      const data = await api("/users/export");
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const token = await getToken();
+      
+      const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/users/export?format=${format}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `gymrathub-export-${Date.now()}.json`;
+      a.download = format === "pdf"
+        ? `gymrathub-report-${Date.now()}.pdf`
+        : format === "csv"
+        ? `gymrathub-history-${Date.now()}.csv`
+        : `gymrathub-export-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Data export downloaded!");
+      toast.success(`${format.toUpperCase()} export downloaded!`);
     } catch {
-      toast.error("Could not export data.");
+      toast.error(`Could not export ${format.toUpperCase()} data.`);
     } finally {
       setExporting(false);
     }
@@ -107,10 +127,60 @@ export default function PrivacySettings() {
               Manage
             </button>
           </SettingsRow>
-          <SettingsRow label="Download My Data" description="Get a JSON copy of all your GymRat Hub data">
-            <button type="button" onClick={handleExportViaApi} disabled={exporting} style={{ fontSize: 12, color: "#38bdf8", background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.2)", padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
-              {exporting ? "Exporting…" : "Export"}
-            </button>
+          <SettingsRow label="Download My Data" description="Get a copy of your GymRat Hub history and metrics">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => handleExportFile("pdf")}
+                disabled={exporting}
+                style={{
+                  fontSize: 12,
+                  color: "#39E609",
+                  background: "rgba(57,230,9,0.08)",
+                  border: "1px solid rgba(57,230,9,0.2)",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                PDF Report
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportFile("csv")}
+                disabled={exporting}
+                style={{
+                  fontSize: 12,
+                  color: "#38bdf8",
+                  background: "rgba(56,189,248,0.08)",
+                  border: "1px solid rgba(56,189,248,0.2)",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                CSV History
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportFile("json")}
+                disabled={exporting}
+                style={{
+                  fontSize: 12,
+                  color: "#a855f7",
+                  background: "rgba(168,85,247,0.08)",
+                  border: "1px solid rgba(168,85,247,0.2)",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                JSON Export
+              </button>
+            </div>
           </SettingsRow>
         </div>
       </div>

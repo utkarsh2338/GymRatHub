@@ -1,0 +1,87 @@
+version: "3.9"
+
+# GymRatHub — local development stack
+# Usage:
+#   docker compose up          # Start all services
+#   docker compose up mongo    # Start only MongoDB
+#   docker compose down -v     # Tear down + wipe volumes
+
+services:
+
+  # ─── MongoDB ──────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: gymrathub-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      # Remove these lines if you want an auth-free dev DB
+      MONGO_INITDB_ROOT_USERNAME: gymrat
+      MONGO_INITDB_ROOT_PASSWORD: gymrat_local
+      MONGO_INITDB_DATABASE: gymrathub
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (BullMQ queues) ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: gymrathub-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ─── Backend (Express / TypeScript) ──────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gymrathub-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override specific vars for Docker networking
+      MONGODB_URI: mongodb://gymrat:gymrat_local@mongo:27017/gymrathub?authSource=admin
+      REDIS_URL: redis://redis:6379
+      PORT: 5000
+    volumes:
+      # Persist uploaded files between restarts
+      - uploads_data:/app/uploads
+
+  # ─── Frontend (Next.js) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gymrathub-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      # Pass through other NEXT_PUBLIC_* vars as needed:
+      # NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+
+volumes:
+  mongo_data:
+  uploads_data:

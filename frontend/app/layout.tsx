@@ -26,6 +26,7 @@ export const metadata: Metadata = {
   },
   description:
     "GymRat Hub is your all-in-one fitness platform. Access 10,000+ workouts, track nutrition, connect with elite trainers, and join a community of 128K+ athletes.",
+  manifest: "/manifest.json",
   keywords: [
     "gym",
     "workout",
@@ -68,6 +69,21 @@ export default function RootLayout({
             />
           </QueryProvider>
         </AuthProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    console.log('ServiceWorker registration successful with scope: ', reg.scope);
+                  }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                  });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

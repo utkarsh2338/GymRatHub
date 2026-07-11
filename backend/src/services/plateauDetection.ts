@@ -117,7 +117,7 @@ async function buildExerciseHistory(
   return history;
 }
 
-function classifySeverity(percentChange: number, sessionsAnalyzed: number): PlateauSeverity {
+export function classifySeverity(percentChange: number, sessionsAnalyzed: number): PlateauSeverity {
   if (sessionsAnalyzed < MIN_SESSIONS_FOR_TREND) return "none";
   if (percentChange <= REGRESSION_THRESHOLD_PCT) return "severe";
   if (percentChange < STALL_THRESHOLD_PCT * 0.4) return "moderate";
@@ -125,7 +125,7 @@ function classifySeverity(percentChange: number, sessionsAnalyzed: number): Plat
   return "none";
 }
 
-function recommendAction(
+export function recommendAction(
   type: PlateauType,
   severity: PlateauSeverity,
   exerciseName: string,

@@ -40,6 +40,7 @@ function exerciseToTemplate(ex: Exercise, order: number): TemplateExerciseItem {
     targetReps: ex.reps ?? "10",
     order,
     supersetGroupId: null,
+    restSeconds: 90,
   };
 }
 
@@ -106,7 +107,7 @@ export default function PlanEditorModal({ template, open, onClose }: Props) {
 
   const updateExerciseField = (
     index: number,
-    field: "targetSets" | "targetReps",
+    field: "targetSets" | "targetReps" | "restSeconds",
     value: number | string
   ) => {
     updateDay(activeDay, (day) => ({
@@ -325,6 +326,19 @@ export default function PlanEditorModal({ template, open, onClose }: Props) {
                                     updateExerciseField(index, "targetReps", e.target.value)
                                   }
                                   className="w-16 bg-[#111] border border-[#2a2a2a] rounded px-1.5 py-0.5 text-white text-xs text-center"
+                                />
+                              </label>
+                              <label className="text-[10px] text-gray-500 flex items-center gap-1">
+                                Rest (s)
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={15}
+                                  value={ex.restSeconds ?? 90}
+                                  onChange={(e) =>
+                                    updateExerciseField(index, "restSeconds", Number(e.target.value) || 0)
+                                  }
+                                  className="w-14 bg-[#111] border border-[#2a2a2a] rounded px-1.5 py-0.5 text-white text-xs text-center"
                                 />
                               </label>
                             </div>

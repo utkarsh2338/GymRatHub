@@ -1,5 +1,7 @@
 import { Router, Response } from "express";
+import { z } from "zod";
 import { AuthenticatedRequest } from "../middleware/auth";
+import { validateBody } from "../middleware/validate";
 import UserModel from "../models/User";
 import WorkoutPlanModel from "../models/Workout";
 import NutritionModel from "../models/Nutrition";
@@ -22,6 +24,131 @@ import {
   exportUserData,
   syncNameToClerk,
 } from "../services/userAccount";
+
+// ─── Validation Schemas ───────────────────────────────────────────────────────
+
+const updateProfileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  bio: z.string().max(500).optional(),
+  location: z.string().max(100).optional(),
+});
+
+const setProgressTargetSchema = z.object({
+  currentWeight: z.coerce.number().min(30, "Current weight must be at least 30 kg").max(300, "Current weight must be at most 300 kg"),
+  targetWeight: z.coerce.number().min(30, "Target weight must be at least 30 kg").max(300, "Target weight must be at most 300 kg"),
+  fitnessGoal: z.enum(["lose_weight", "build_muscle", "improve_endurance", "stay_active"]).default("build_muscle"),
+});
+
+const updateStatsSchema = z.object({
+  workoutsCompleted: z.coerce.number().min(0).optional(),
+  streak: z.coerce.number().min(0).optional(),
+  caloriesBurned: z.coerce.number().min(0).optional(),
+  waterIntake: z.coerce.number().min(0).optional(),
+  weight: z.coerce.number().min(30).max(300).optional(),
+  weightGoal: z.coerce.number().min(30).max(300).optional(),
+});
+
+const updateNotificationsSchema = z.object({
+  pushWorkouts: z.boolean().optional(),
+  pushChallenges: z.boolean().optional(),
+  pushCommunity: z.boolean().optional(),
+  pushTrainers: z.boolean().optional(),
+  emailWeekly: z.boolean().optional(),
+  emailPRs: z.boolean().optional(),
+  emailNewsletter: z.boolean().optional(),
+  emailOffers: z.boolean().optional(),
+});
+
+const updatePrivacySchema = z.object({
+  publicProfile: z.boolean().optional(),
+  showStats: z.boolean().optional(),
+  showWorkouts: z.boolean().optional(),
+  allowMessages: z.boolean().optional(),
+  activityStatus: z.boolean().optional(),
+  twoFactorEnabled: z.boolean().optional(),
+});
+
+const updateAppearanceSchema = z.object({
+  theme: z.enum(["dark", "light", "auto"]).optional(),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color").optional(),
+  compactMode: z.boolean().optional(),
+  animations: z.boolean().optional(),
+  language: z.string().optional(),
+});
+
+const updateFitnessPrefsSchema = z.object({
+  units: z.enum(["metric", "imperial"]).optional(),
+  fitnessLevel: z.enum(["beginner", "intermediate", "advanced", "athlete"]).optional(),
+  weeklyWorkoutTarget: z.coerce.number().min(1).max(7).optional(),
+  preferredRestDay: z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]).optional(),
+  fitnessGoal: z.enum(["lose_weight", "build_muscle", "improve_endurance", "stay_active"]).optional(),
+});
+
+const updatePlanSchema = z.object({
+  plan: z.enum(["free", "pro", "elite"]),
+});
+
+const nutritionGoalsSchema = z.object({
+  date: z.string().optional(),
+  calories: z.coerce.number().min(0).optional(),
+  protein: z.coerce.number().min(0).optional(),
+  carbs: z.coerce.number().min(0).optional(),
+  fat: z.coerce.number().min(0).optional(),
+  water: z.coerce.number().min(0).optional(),
+});
+
+const waterGoalSchema = z.object({
+  date: z.string().optional(),
+  weightKg: z.coerce.number().min(30, "Enter a valid body weight (30–300 kg)").max(300, "Enter a valid body weight (30–300 kg)"),
+  activityLevel: z.enum(["sedentary", "lightly_active", "moderately_active", "very_active", "extremely_active"]).default("moderately_active"),
+  climate: z.enum(["mild", "hot", "cold"]).default("mild"),
+  customGoal: z.coerce.number().min(0).optional(),
+});
+
+const logFoodItemSchema = z.object({
+  date: z.string().optional(),
+  name: z.string().min(1, "Food name is required").max(200),
+  calories: z.coerce.number().min(0).optional(),
+  protein: z.coerce.number().min(0).optional(),
+  carbs: z.coerce.number().min(0).optional(),
+  fat: z.coerce.number().min(0).optional(),
+  amount: z.string().optional(),
+});
+
+const editFoodItemSchema = z.object({
+  date: z.string().optional(),
+  name: z.string().min(1).max(200).optional(),
+  calories: z.coerce.number().min(0).optional(),
+  protein: z.coerce.number().min(0).optional(),
+  carbs: z.coerce.number().min(0).optional(),
+  fat: z.coerce.number().min(0).optional(),
+  amount: z.string().optional(),
+});
+
+const logWaterSchema = z.object({
+  date: z.string().optional(),
+  amount: z.coerce.number().min(0, "Water amount must be non-negative"),
+});
+
+const plannerWorkoutSchema = z.object({
+  name: z.string().min(1, "Workout name is required").max(100),
+  type: z.string().min(1, "Workout type is required"),
+  duration: z.coerce.number().min(0).default(0),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color").default("#39E609"),
+});
+
+const createPostSchema = z.object({
+  content: z.string().min(1, "Post content cannot be empty").max(2000),
+  tags: z.array(z.string().max(50)).max(10).optional(),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  type: z.enum(["general", "achievement", "progress", "question"]).default("general"),
+});
+
+const deleteAccountSchema = z.object({
+  confirm: z.literal("DELETE", { error: 'Type "DELETE" to confirm account removal.' }),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const router = Router();
 
@@ -68,7 +195,7 @@ router.get("/users/profile", async (req: AuthenticatedRequest, res: Response) =>
 });
 
 // PUT Update profile fields (name, bio, location)
-router.put("/users/profile", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/profile", validateBody(updateProfileSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { name, bio, location } = req.body;
@@ -104,7 +231,7 @@ router.put("/users/profile", async (req: AuthenticatedRequest, res: Response) =>
 });
 
 // PUT Set progress target (current weight, goal weight, fitness goal)
-router.put("/users/profile/target", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/profile/target", validateBody(setProgressTargetSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { currentWeight, targetWeight, fitnessGoal } = req.body;
@@ -147,7 +274,7 @@ router.put("/users/profile/target", async (req: AuthenticatedRequest, res: Respo
 });
 
 // PUT Update User Stats (streak, water, weight, etc.)
-router.put("/users/profile/stats", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/profile/stats", validateBody(updateStatsSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { workoutsCompleted, streak, caloriesBurned, waterIntake, weight, weightGoal } = req.body;
@@ -214,7 +341,7 @@ function prefUpdate(
   return $set;
 }
 
-router.put("/users/preferences/notifications", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/preferences/notifications", validateBody(updateNotificationsSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const $set = prefUpdate("notificationPreferences", req.body, [
@@ -230,7 +357,7 @@ router.put("/users/preferences/notifications", async (req: AuthenticatedRequest,
   }
 });
 
-router.put("/users/preferences/privacy", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/preferences/privacy", validateBody(updatePrivacySchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const $set = prefUpdate("privacyPreferences", req.body, [
@@ -246,7 +373,7 @@ router.put("/users/preferences/privacy", async (req: AuthenticatedRequest, res: 
   }
 });
 
-router.put("/users/preferences/appearance", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/preferences/appearance", validateBody(updateAppearanceSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { theme, accentColor, compactMode, animations, language } = req.body;
@@ -270,7 +397,7 @@ router.put("/users/preferences/appearance", async (req: AuthenticatedRequest, re
   }
 });
 
-router.put("/users/preferences/fitness", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/preferences/fitness", validateBody(updateFitnessPrefsSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { units, fitnessLevel, weeklyWorkoutTarget, preferredRestDay, fitnessGoal } = req.body;
@@ -304,7 +431,7 @@ router.put("/users/preferences/fitness", async (req: AuthenticatedRequest, res: 
   }
 });
 
-router.put("/users/plan", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/users/plan", validateBody(updatePlanSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { plan } = req.body;
@@ -324,20 +451,38 @@ router.put("/users/plan", async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+import { exportToCSV, exportToPDF } from "../services/exportService";
+
 router.get("/users/export", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
-    const data = await exportUserData(clerkId!);
-    res.setHeader("Content-Type", "application/json");
-    res.setHeader("Content-Disposition", `attachment; filename="gymrathub-export-${Date.now()}.json"`);
-    return res.json(data);
+    const format = req.query.format as string;
+
+    if (format === "pdf") {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="gymrathub-report-${Date.now()}.pdf"`);
+      await exportToPDF(clerkId!, res);
+      return;
+    } else if (format === "csv") {
+      const csvData = await exportToCSV(clerkId!);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="gymrathub-history-${Date.now()}.csv"`);
+      return res.send(csvData);
+    } else {
+      const data = await exportUserData(clerkId!);
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="gymrathub-export-${Date.now()}.json"`);
+      return res.json(data);
+    }
   } catch (error) {
     console.error("GET export error:", error);
-    return res.status(500).json({ error: "Internal server error." });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: "Internal server error." });
+    }
   }
 });
 
-router.delete("/users/account", async (req: AuthenticatedRequest, res: Response) => {
+router.delete("/users/account", validateBody(deleteAccountSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { confirm } = req.body;
@@ -525,7 +670,7 @@ router.get("/nutrition", async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // PUT Nutrition goals (macros + calories + water)
-router.put("/nutrition/goals", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/nutrition/goals", validateBody(nutritionGoalsSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { date, calories, protein, carbs, fat, water } = req.body;
@@ -557,7 +702,7 @@ router.put("/nutrition/goals", async (req: AuthenticatedRequest, res: Response) 
 });
 
 // PUT Water intake goal (personalized setup)
-router.put("/nutrition/water-goal", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/nutrition/water-goal", validateBody(waterGoalSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { date, weightKg, activityLevel, climate, customGoal } = req.body;
@@ -614,7 +759,7 @@ router.put("/nutrition/water-goal", async (req: AuthenticatedRequest, res: Respo
 });
 
 // POST Log Food Item to a Meal
-router.post("/nutrition/meals/:mealId", async (req: AuthenticatedRequest, res: Response) => {
+router.post("/nutrition/meals/:mealId", validateBody(logFoodItemSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { mealId } = req.params;
@@ -648,6 +793,7 @@ router.post("/nutrition/meals/:mealId", async (req: AuthenticatedRequest, res: R
 // PATCH Edit food item
 router.patch(
   "/nutrition/meals/:mealId/items/:itemIndex",
+  validateBody(editFoodItemSchema),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const clerkId = req.auth?.userId;
@@ -777,7 +923,7 @@ router.post(
 );
 
 // POST Log Water Intake
-router.post("/nutrition/water", async (req: AuthenticatedRequest, res: Response) => {
+router.post("/nutrition/water", validateBody(logWaterSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { date, amount } = req.body;
@@ -842,7 +988,7 @@ router.get("/planner", async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // POST Add Scheduled Workout Plan
-router.post("/planner/:dayLabel/workouts", async (req: AuthenticatedRequest, res: Response) => {
+router.post("/planner/:dayLabel/workouts", validateBody(plannerWorkoutSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { dayLabel } = req.params; // "Mon", "Tue", etc.
@@ -978,7 +1124,7 @@ router.get("/community/posts", async (req: AuthenticatedRequest, res: Response) 
 });
 
 // POST Create Community Post
-router.post("/community/posts", async (req: AuthenticatedRequest, res: Response) => {
+router.post("/community/posts", validateBody(createPostSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { content, tags, imageUrl, type } = req.body;

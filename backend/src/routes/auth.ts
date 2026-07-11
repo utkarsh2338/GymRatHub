@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import axios from "axios";
+import rateLimit from "express-rate-limit";
 import UserModel from "../models/User";
 import { env } from "../config/env";
 import { FRESH_USER_STATS } from "../constants/freshUser";
@@ -10,8 +11,34 @@ import { FRESH_USER_STATS } from "../constants/freshUser";
 const router = Router();
 const JWT_SECRET = env.JWT_SECRET;
 
+// Tighter rate limits on credential endpoints to blunt credential-stuffing.
+// These apply per IP, independently of any global rate limit.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Please try again in 15 minutes." },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many registration attempts from this IP. Please try again in an hour." },
+});
+
+const googleLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many authentication requests. Please try again in 15 minutes." },
+});
+
 // POST /api/auth/register
-router.post("/register", async (req: Request, res: Response) => {
+router.post("/register", registerLimiter, async (req: Request, res: Response) => {
   try {
     const { name, email, password, goal } = req.body;
 
@@ -74,7 +101,7 @@ router.post("/register", async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", loginLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -116,7 +143,7 @@ router.post("/login", async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/google
-router.post("/google", async (req: Request, res: Response) => {
+router.post("/google", googleLimiter, async (req: Request, res: Response) => {
   try {
     const { token, goal } = req.body;
 

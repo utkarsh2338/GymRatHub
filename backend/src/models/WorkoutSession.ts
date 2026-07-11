@@ -30,6 +30,7 @@ const SessionExerciseSchema = new Schema(
     },
     order: { type: Number, default: 0 },
     supersetGroupId: { type: String, default: null },
+    restSeconds: { type: Number, default: 90 },
   },
   { _id: false }
 );

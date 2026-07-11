@@ -18,6 +18,9 @@ const UserSchema = new Schema({
   bio: { type: String, default: "" },
   location: { type: String, default: "" },
   plan: { type: String, enum: ["free", "pro", "elite"], default: "free" },
+  stripeCustomerId: { type: String, default: null },
+  stripeSubscriptionId: { type: String, default: null },
+  subscriptionStatus: { type: String, default: null },
   fitnessGoal: {
     type: String,
     enum: ["lose_weight", "build_muscle", "improve_endurance", "stay_active"],

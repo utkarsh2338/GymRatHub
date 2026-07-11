@@ -260,7 +260,8 @@ export default function ActiveWorkoutSession({ sessionId }: Props) {
   };
 
   const startRest = () => {
-    setRestSeconds(DEFAULT_REST_SEC);
+    const duration = activeExercise?.restSeconds ?? DEFAULT_REST_SEC;
+    setRestSeconds(duration);
     setRestRunning(true);
   };
 
@@ -387,7 +388,33 @@ export default function ActiveWorkoutSession({ sessionId }: Props) {
               {formatTime(elapsed)}
             </span>
             {restRunning && (
-              <span className="text-[#f97316] font-mono font-bold">Rest {formatTime(restSeconds)}</span>
+              <div className="flex items-center gap-2 bg-[#f97316]/10 border border-[#f97316]/20 px-3 py-1 rounded-full text-xs text-[#f97316] font-semibold">
+                <span className="font-mono font-bold">Rest {formatTime(restSeconds)}</span>
+                <button
+                  type="button"
+                  onClick={() => setRestSeconds((s) => s + 30)}
+                  className="hover:text-white px-1 font-bold border-l border-[#f97316]/20 ml-1.5"
+                  title="Add 30s"
+                >
+                  +30s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRestSeconds((s) => Math.max(0, s - 30))}
+                  className="hover:text-white px-1 font-bold"
+                  title="Sub 30s"
+                >
+                  -30s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRestRunning(false)}
+                  className="hover:text-white px-1 text-[10px] font-black uppercase text-red-400"
+                  title="Skip rest"
+                >
+                  Skip
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -505,12 +532,16 @@ function ExerciseLogger({
   };
 
   const toggleComplete = (index: number) => {
+    let becameCompleted = false;
     setSets((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], completed: !next[index].completed };
+      becameCompleted = !next[index].completed;
+      next[index] = { ...next[index], completed: becameCompleted };
       return next;
     });
-    startRest();
+    if (becameCompleted) {
+      startRest();
+    }
   };
 
   const addSet = () => {
