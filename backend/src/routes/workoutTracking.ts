@@ -314,7 +314,7 @@ router.post("/workout-sessions", async (req: AuthenticatedRequest, res: Response
       exercises = exercisesFromTemplateDay(day.exercises);
     } else if (source === "today") {
       const todayLabel = getDayName();
-      let workout = await WorkoutPlanModel.findOne({ clerkId, day: todayLabel });
+      const workout = await WorkoutPlanModel.findOne({ clerkId, day: todayLabel });
       if (!workout) {
         return res.status(404).json({ error: "No workout plan for today. Set up your planner first." });
       }
