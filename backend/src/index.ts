@@ -41,11 +41,19 @@ const staticAllowedOrigins = [
     .filter(Boolean),
 ];
 
-/** Allow Vercel preview/production deployments (e.g. *.vercel.app) automatically. */
+/** Allow Vercel preview/production deployments (e.g. *.vercel.app) automatically. 
+ *  In development, any localhost / 127.0.0.1 port is allowed so Next.js
+ *  port-bumping (3000 → 3001 → 3002 …) never causes a CORS block. */
 function isAllowedOrigin(origin: string): boolean {
   if (staticAllowedOrigins.includes(origin)) return true;
   try {
     const { hostname } = new URL(origin);
+    if (
+      process.env.NODE_ENV !== "production" &&
+      (hostname === "localhost" || hostname === "127.0.0.1")
+    ) {
+      return true;
+    }
     return hostname.endsWith(".vercel.app");
   } catch {
     return false;

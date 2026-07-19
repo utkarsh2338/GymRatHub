@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import { z } from "zod";
+import mongoose from "mongoose";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import UserModel from "../models/User";
@@ -7,6 +8,7 @@ import WorkoutPlanModel from "../models/Workout";
 import NutritionModel from "../models/Nutrition";
 import PlannerDayModel from "../models/Planner";
 import PostModel from "../models/Post";
+import CommentModel from "../models/Comment";
 import UserChallengeModel from "../models/Challenge";
 import { searchTutorialVideos } from "../services/youtube";
 import { FRESH_USER_STATS } from "../constants/freshUser";
@@ -141,7 +143,23 @@ const createPostSchema = z.object({
   content: z.string().min(1, "Post content cannot be empty").max(2000),
   tags: z.array(z.string().max(50)).max(10).optional(),
   imageUrl: z.string().url().optional().or(z.literal("")),
-  type: z.enum(["general", "achievement", "progress", "question"]).default("general"),
+  type: z.enum(["general", "achievement", "progress"]).default("general"),
+  workoutData: z.object({ type: z.string(), value: z.string() }).optional(),
+});
+
+const editPostSchema = z.object({
+  content: z.string().min(1, "Post content cannot be empty").max(2000).optional(),
+  tags: z.array(z.string().max(50)).max(10).optional(),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  workoutData: z.object({ type: z.string(), value: z.string() }).optional().nullable(),
+});
+
+const createCommentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty").max(1000),
+});
+
+const editCommentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty").max(1000),
 });
 
 const deleteAccountSchema = z.object({
@@ -435,16 +453,33 @@ router.put("/users/plan", validateBody(updatePlanSchema), async (req: Authentica
   try {
     const clerkId = req.auth?.userId;
     const { plan } = req.body;
+
     if (!["free", "pro", "elite"].includes(plan)) {
       return res.status(400).json({ error: "Invalid plan." });
     }
-    const user = await UserModel.findOneAndUpdate(
-      { clerkId },
-      { $set: { plan } },
-      { new: true }
-    );
+
+    // Paid plan upgrades must go through Stripe Checkout — block direct API calls
+    if (plan === "pro" || plan === "elite") {
+      return res.status(403).json({
+        error: "Paid plan upgrades require Stripe Checkout. Please use the billing page.",
+        requiresCheckout: true,
+      });
+    }
+
+    // Allow downgrade to free only if there's no active Stripe subscription
+    // (i.e. user cancelled via Stripe or never subscribed)
+    const user = await UserModel.findOne({ clerkId });
     if (!user) return res.status(404).json({ error: "User not found." });
-    return res.json({ plan: user.plan });
+
+    if (user.stripeSubscriptionId && ["active", "trialing"].includes(user.subscriptionStatus ?? "")) {
+      return res.status(400).json({
+        error: "You have an active subscription. Please cancel it from the billing portal first.",
+        requiresPortal: true,
+      });
+    }
+
+    await UserModel.findOneAndUpdate({ clerkId }, { $set: { plan: "free" } });
+    return res.json({ plan: "free" });
   } catch (error) {
     console.error("PUT plan error:", error);
     return res.status(500).json({ error: "Internal server error." });
@@ -1070,6 +1105,7 @@ router.delete("/planner/:dayLabel/workouts/:workoutId", async (req: Authenticate
 router.get("/community/posts", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
+    const { sort } = req.query; // "recent" | "liked"
     let posts = await PostModel.find({}).sort({ createdAt: -1 });
 
     if (posts.length === 0) {
@@ -1083,7 +1119,8 @@ router.get("/community/posts", async (req: AuthenticatedRequest, res: Response) 
           likes: ["u_mock_2"],
           commentsCount: 94,
           shares: 23,
-          type: "achievement"
+          type: "achievement",
+          workoutData: { type: "PR", value: "Bench Press 102kg" },
         },
         {
           clerkId: "u_mock_2",
@@ -1093,26 +1130,49 @@ router.get("/community/posts", async (req: AuthenticatedRequest, res: Response) 
           likes: [clerkId || "u_mock_1"],
           commentsCount: 156,
           shares: 44,
-          type: "progress"
-        }
+          type: "progress",
+        },
+        {
+          clerkId: "u_mock_3",
+          author: { name: "Robert McClain", avatar: "", badge: "Elite" },
+          content: "5am club is the only club worth joining! Early morning cardio + cold plunge = unstoppable energy for the day. Who else starts their day before sunrise? 🌅",
+          tags: ["MorningRoutine", "Cardio"],
+          likes: [],
+          commentsCount: 78,
+          shares: 12,
+          type: "general",
+        },
       ];
 
-      posts = await PostModel.create(defaultPosts);
+      posts = await PostModel.create(defaultPosts) as any[];
     }
 
-    // Map models to frontend layout, adding `liked` flag
-    const mappedPosts = posts.map(post => {
-      const plain = post.toObject();
+    // Apply sort client hint
+    let sorted = [...posts];
+    if (sort === "liked") {
+      sorted = sorted.sort((a, b) => (b.likes?.length ?? 0) - (a.likes?.length ?? 0));
+    }
+
+    // Map models to frontend layout
+    const mappedPosts = sorted.map(post => {
+      const plain = (post as any).toObject ? (post as any).toObject() : post;
       return {
-        ...plain,
         id: plain._id.toString(),
-        liked: clerkId ? plain.likes.includes(clerkId) : false,
-        likes: plain.likes.length,
-        author: {
-          ...plain.author,
-          id: plain.clerkId,
-          isFollowing: false
-        }
+        authorId: plain.clerkId,
+        authorName: plain.author?.name ?? "",
+        authorAvatar: plain.author?.avatar ?? "",
+        authorBadge: plain.author?.badge ?? "",
+        content: plain.content,
+        tags: plain.tags ?? [],
+        imageUrl: plain.imageUrl ?? "",
+        workoutData: plain.workoutData?.value ? plain.workoutData : null,
+        likes: plain.likes ?? [],
+        liked: clerkId ? (plain.likes ?? []).includes(clerkId) : false,
+        commentsCount: plain.commentsCount ?? 0,
+        shares: plain.shares ?? 0,
+        type: plain.type ?? "general",
+        createdAt: plain.createdAt,
+        editedAt: plain.editedAt ?? null,
       };
     });
 
@@ -1127,7 +1187,7 @@ router.get("/community/posts", async (req: AuthenticatedRequest, res: Response) 
 router.post("/community/posts", validateBody(createPostSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
-    const { content, tags, imageUrl, type } = req.body;
+    const { content, tags, imageUrl, type, workoutData } = req.body;
 
     const user = await UserModel.findOne({ clerkId });
     if (!user) {
@@ -1145,19 +1205,89 @@ router.post("/community/posts", validateBody(createPostSchema), async (req: Auth
       tags: tags || [],
       imageUrl: imageUrl || "",
       type: type || "general",
+      workoutData: workoutData || null,
       likes: [],
       commentsCount: 0,
-      shares: 0
+      shares: 0,
     });
 
+    const plain = post.toObject();
     return res.json({
-      ...post.toObject(),
-      id: post._id.toString(),
+      id: plain._id.toString(),
+      authorId: clerkId,
+      authorName: plain.author?.name ?? "",
+      authorAvatar: plain.author?.avatar ?? "",
+      authorBadge: plain.author?.badge ?? "",
+      content: plain.content,
+      tags: plain.tags,
+      imageUrl: plain.imageUrl,
+      workoutData: plain.workoutData?.value ? plain.workoutData : null,
+      likes: [],
       liked: false,
-      likes: 0
+      commentsCount: 0,
+      shares: 0,
+      type: plain.type,
+      createdAt: plain.createdAt,
+      editedAt: null,
     });
   } catch (error) {
     console.error("POST post error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// PATCH Edit Community Post (author only)
+router.patch("/community/posts/:postId", validateBody(editPostSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    const { postId } = req.params;
+    const { content, tags, imageUrl, workoutData } = req.body;
+
+    const post = await PostModel.findById(postId);
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    if (post.clerkId !== clerkId) return res.status(403).json({ error: "Not authorized to edit this post." });
+
+    if (content !== undefined) post.content = content;
+    if (tags !== undefined) post.tags = tags;
+    if (imageUrl !== undefined) (post as any).imageUrl = imageUrl;
+    if (workoutData !== undefined) (post as any).workoutData = workoutData;
+    (post as any).editedAt = new Date();
+
+    await post.save();
+    const plain = post.toObject();
+
+    return res.json({
+      id: plain._id.toString(),
+      authorId: plain.clerkId,
+      content: plain.content,
+      tags: plain.tags,
+      imageUrl: (plain as any).imageUrl,
+      workoutData: (plain as any).workoutData?.value ? (plain as any).workoutData : null,
+      editedAt: (plain as any).editedAt,
+    });
+  } catch (error) {
+    console.error("PATCH post error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// DELETE Community Post (author only)
+router.delete("/community/posts/:postId", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    const { postId } = req.params;
+
+    const post = await PostModel.findById(postId);
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    if (post.clerkId !== clerkId) return res.status(403).json({ error: "Not authorized to delete this post." });
+
+    await PostModel.deleteOne({ _id: postId });
+    // Clean up associated comments
+    await CommentModel.deleteMany({ postId: new mongoose.Types.ObjectId(postId) });
+
+    return res.json({ success: true, id: postId });
+  } catch (error) {
+    console.error("DELETE post error:", error);
     return res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -1175,10 +1305,8 @@ router.post("/community/posts/:postId/like", async (req: AuthenticatedRequest, r
 
     const likeIdx = post.likes.indexOf(clerkId);
     if (likeIdx > -1) {
-      // Unlike
       post.likes.splice(likeIdx, 1);
     } else {
-      // Like
       post.likes.push(clerkId);
     }
 
@@ -1187,10 +1315,125 @@ router.post("/community/posts/:postId/like", async (req: AuthenticatedRequest, r
     return res.json({
       id: post._id.toString(),
       liked: post.likes.includes(clerkId),
-      likes: post.likes.length
+      likes: post.likes as string[],
     });
   } catch (error) {
     console.error("POST like error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// GET Comments for a Post
+router.get("/community/posts/:postId/comments", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const comments = await CommentModel.find({ postId: new mongoose.Types.ObjectId(postId) }).sort({ createdAt: 1 });
+    return res.json(
+      comments.map(c => ({
+        id: c._id.toString(),
+        postId: c.postId.toString(),
+        authorId: c.clerkId,
+        authorName: c.author?.name ?? "",
+        authorAvatar: c.author?.avatar ?? "",
+        content: c.content,
+        createdAt: c.createdAt,
+        editedAt: (c as any).editedAt ?? null,
+      }))
+    );
+  } catch (error) {
+    console.error("GET comments error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST Add Comment
+router.post("/community/posts/:postId/comments", validateBody(createCommentSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    const { postId } = req.params;
+    const { content } = req.body;
+
+    const post = await PostModel.findById(postId);
+    if (!post) return res.status(404).json({ error: "Post not found." });
+
+    const user = await UserModel.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const comment = await CommentModel.create({
+      postId: new mongoose.Types.ObjectId(postId),
+      clerkId,
+      author: { name: user.name, avatar: user.avatar || "" },
+      content,
+    });
+
+    // Increment commentsCount on the post
+    post.commentsCount = (post.commentsCount ?? 0) + 1;
+    await post.save();
+
+    return res.json({
+      id: comment._id.toString(),
+      postId,
+      authorId: clerkId,
+      authorName: comment.author?.name ?? "",
+      authorAvatar: comment.author?.avatar ?? "",
+      content: comment.content,
+      createdAt: comment.createdAt,
+      editedAt: null,
+    });
+  } catch (error) {
+    console.error("POST comment error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// PATCH Edit Comment (author only)
+router.patch("/community/posts/:postId/comments/:commentId", validateBody(editCommentSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    const { commentId } = req.params;
+    const { content } = req.body;
+
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) return res.status(404).json({ error: "Comment not found." });
+    if (comment.clerkId !== clerkId) return res.status(403).json({ error: "Not authorized to edit this comment." });
+
+    comment.content = content;
+    (comment as any).editedAt = new Date();
+    await comment.save();
+
+    return res.json({
+      id: comment._id.toString(),
+      postId: comment.postId.toString(),
+      authorId: comment.clerkId,
+      authorName: comment.author?.name ?? "",
+      content: comment.content,
+      createdAt: comment.createdAt,
+      editedAt: (comment as any).editedAt,
+    });
+  } catch (error) {
+    console.error("PATCH comment error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// DELETE Comment (author only)
+router.delete("/community/posts/:postId/comments/:commentId", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    const { postId, commentId } = req.params;
+
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) return res.status(404).json({ error: "Comment not found." });
+    if (comment.clerkId !== clerkId) return res.status(403).json({ error: "Not authorized to delete this comment." });
+
+    await CommentModel.deleteOne({ _id: commentId });
+
+    // Decrement commentsCount
+    await PostModel.findByIdAndUpdate(postId, { $inc: { commentsCount: -1 } });
+
+    return res.json({ success: true, id: commentId });
+  } catch (error) {
+    console.error("DELETE comment error:", error);
     return res.status(500).json({ error: "Internal server error." });
   }
 });

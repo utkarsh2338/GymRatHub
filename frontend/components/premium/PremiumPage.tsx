@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Check, X, Crown, Star, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useApiClient, useIsApiReady } from "@/lib/api-client";
 
 const PLANS = [
@@ -212,7 +212,6 @@ export default function PremiumPage() {
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const api = useApiClient();
   const isApiReady = useIsApiReady();
-  const queryClient = useQueryClient();
 
   const { data: profile } = useQuery({
     queryKey: ["userProfile"],
@@ -221,16 +220,6 @@ export default function PremiumPage() {
   });
 
   const currentPlan = profile?.plan ?? "free";
-
-  const planMutation = useMutation({
-    mutationFn: (plan: string) => api("/users/plan", { method: "PUT", body: JSON.stringify({ plan }) }),
-    onSuccess: (_, plan) => {
-      queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
-      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
-      toast.success(`Plan updated to ${plan}!`);
-    },
-    onError: () => toast.error("Could not update plan."),
-  });
 
   const checkoutMutation = useMutation({
     mutationFn: (args: { plan: string; interval: string }) =>
@@ -246,6 +235,16 @@ export default function PremiumPage() {
       }
     },
     onError: () => toast.error("Stripe Checkout failed to initialize."),
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: () =>
+      api("/payments/create-portal-session", { method: "POST" }),
+    onSuccess: (data: { url: string }) => {
+      if (data.url) window.location.href = data.url;
+      else toast.error("Could not open billing portal.");
+    },
+    onError: () => toast.error("Could not open billing portal."),
   });
 
   return (
@@ -304,12 +303,17 @@ export default function PremiumPage() {
               currentPlan={currentPlan}
               onChangePlan={(p) => {
                 if (p === "free") {
-                  planMutation.mutate(p);
+                  // Route to Stripe portal if they have a subscription, else no-op
+                  if (profile?.stripeSubscriptionId) {
+                    portalMutation.mutate();
+                  } else {
+                    toast.info("You are already on the free plan.");
+                  }
                 } else {
                   checkoutMutation.mutate({ plan: p, interval: billing });
                 }
               }}
-              isPending={planMutation.isPending || checkoutMutation.isPending}
+              isPending={checkoutMutation.isPending || portalMutation.isPending}
             />
           ))}
         </div>
@@ -408,17 +412,18 @@ export default function PremiumPage() {
             whileTap={currentPlan === "elite" ? undefined : { scale: 0.97 }}
             onClick={() => {
               if (currentPlan === "free") {
-                planMutation.mutate("pro");
+                checkoutMutation.mutate({ plan: "pro", interval: billing });
               } else if (currentPlan === "pro") {
-                planMutation.mutate("elite");
+                checkoutMutation.mutate({ plan: "elite", interval: billing });
               } else {
-                toast.success("You are already on the Elite plan!");
+                // Already elite — open portal to manage subscription
+                portalMutation.mutate();
               }
             }}
-            disabled={currentPlan === "elite" || planMutation.isPending}
+            disabled={checkoutMutation.isPending || portalMutation.isPending}
             className="btn-neon flex items-center gap-2 px-8 py-3 text-sm font-bold shrink-0 pulse-glow"
           >
-            <Zap className="w-4 h-4" /> {planMutation.isPending ? "Updating..." : currentPlan === "free" ? "Upgrade to Pro" : currentPlan === "pro" ? "Upgrade to Elite" : "Active: Elite"}
+            <Zap className="w-4 h-4" /> {checkoutMutation.isPending || portalMutation.isPending ? "Redirecting..." : currentPlan === "free" ? "Upgrade to Pro" : currentPlan === "pro" ? "Upgrade to Elite" : "Manage Subscription"}
           </motion.button>
         </motion.div>
       </div>

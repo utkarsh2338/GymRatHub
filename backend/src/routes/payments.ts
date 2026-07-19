@@ -172,4 +172,65 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req: R
   }
 });
 
+// Create Stripe Customer Portal Session
+router.post("/create-portal-session", express.json(), requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+
+    const user = await UserModel.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    if (!user.stripeCustomerId) {
+      return res.status(400).json({ error: "No billing account found. Please subscribe first." });
+    }
+
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: user.stripeCustomerId,
+      return_url: `${env.FRONTEND_URL || "http://localhost:3000"}/settings?tab=billing`,
+    });
+
+    return res.json({ url: portalSession.url });
+  } catch (error) {
+    console.error("Create Portal Session error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Cancel Subscription at period end
+router.post("/cancel-subscription", express.json(), requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+
+    const user = await UserModel.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    if (!user.stripeSubscriptionId) {
+      return res.status(400).json({ error: "No active subscription found." });
+    }
+
+    // Cancel at period end (user keeps access until billing period ends)
+    await stripe.subscriptions.update(user.stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    });
+
+    // Mark subscription as canceling in DB
+    await UserModel.findOneAndUpdate(
+      { clerkId },
+      { $set: { subscriptionStatus: "canceling" } }
+    );
+
+    console.log(`Subscription ${user.stripeSubscriptionId} set to cancel at period end for user ${clerkId}`);
+    return res.json({ success: true, message: "Subscription will be canceled at the end of the billing period." });
+  } catch (error) {
+    console.error("Cancel Subscription error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 export default router;
