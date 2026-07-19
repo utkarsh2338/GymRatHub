@@ -1,54 +1,56 @@
 "use client";
 
 import { motion, AnimatePresence, useInView } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Trophy, Users, Zap, CheckCircle, Swords, Flame, Droplets, Activity, Dumbbell, Moon, Lock } from "lucide-react";
-import { mockLeaderboard } from "@/lib/mock-data";
 import type { Challenge } from "@/lib/types";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, useIsApiReady } from "@/lib/api-client";
 import EmojiToIcon from "@/components/shared/EmojiToIcon";
+import { useChallengesStore, type Badge } from "@/lib/stores/challengesStore";
 
 /* ─────────────────────────────────────────────
-   Static data
-───────────────────────────────────────────── */
-const BADGES = [
-  { icon: Swords, name: "Iron Warrior", earned: true, xp: 750, desc: "20 strength workouts", color: "#f97316" },
-  { icon: Flame, name: "7-Day Blaze", earned: true, xp: 200, desc: "7 consecutive days", color: "#ef4444" },
-  { icon: Droplets, name: "Hydration King", earned: false, xp: 150, desc: "Hit water goal 10 days", color: "#38bdf8" },
-  { icon: Activity, name: "Speed Demon", earned: false, xp: 300, desc: "Complete 5 cardio sessions", color: "#a855f7" },
-  { icon: Dumbbell, name: "Protein Pro", earned: true, xp: 250, desc: "Hit protein goal 7 days", color: "#39E609" },
-  { icon: Moon, name: "Night Owl", earned: false, xp: 100, desc: "Work out after 8pm, 5 times", color: "#eab308" },
-];
+   Lucide Icon Map for Badges
+   ───────────────────────────────────────────── */
+const BADGE_ICONS: Record<string, any> = {
+  iron_warrior: Swords,
+  seven_day_blaze: Flame,
+  hydration_king: Droplets,
+  speed_demon: Activity,
+  protein_pro: Dumbbell,
+  night_owl: Moon,
+};
 
 const STATUS_COLORS: Record<string, string> = {
   active: "#39E609",
+  joined: "#39E609",
   completed: "#38bdf8",
   upcoming: "#a855f7",
 };
 
 /* ─────────────────────────────────────────────
    ChallengeCard
-───────────────────────────────────────────── */
+   ───────────────────────────────────────────── */
 function ChallengeCard({ challenge, index }: { challenge: Challenge; index: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const api = useApiClient();
   const queryClient = useQueryClient();
-  const [joined, setJoined] = useState(
-    challenge.status === "active" || challenge.status === "joined"
-  );
+  const { joinChallenge } = useChallengesStore();
   const [showXP, setShowXP] = useState(false);
+
+  const joined = challenge.status === "joined" || challenge.status === "completed";
 
   const joinMutation = useMutation({
     mutationFn: () => api(`/challenges/${challenge.id}/join`, { method: "POST" }),
     onSuccess: () => {
-      setJoined(true);
+      joinChallenge(challenge.id);
       setShowXP(true);
       toast.success(`🎉 Joined "${challenge.name}"! +${challenge.xpReward} XP incoming`);
       setTimeout(() => setShowXP(false), 1200);
       queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
     },
     onError: () => toast.error("Could not join challenge. Try again."),
   });
@@ -189,24 +191,24 @@ function ChallengeCard({ challenge, index }: { challenge: Challenge; index: numb
           </div>
         ) : !joined ? (
           <motion.button
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
+            whileHover={challenge.status === "upcoming" ? {} : { scale: 1.06 }}
+            whileTap={challenge.status === "upcoming" ? {} : { scale: 0.94 }}
             onClick={handleJoin}
-            disabled={joinMutation.isPending}
+            disabled={joinMutation.isPending || challenge.status === "upcoming"}
             style={{
-              background: "#39E609",
-              color: "#000000",
+              background: challenge.status === "upcoming" ? "#2a2a2a" : "#39E609",
+              color: challenge.status === "upcoming" ? "#6b7280" : "#000000",
               border: "none",
               borderRadius: "8px",
               padding: "7px 14px",
               fontSize: "12px",
               fontWeight: 700,
-              cursor: joinMutation.isPending ? "wait" : "pointer",
+              cursor: challenge.status === "upcoming" ? "not-allowed" : (joinMutation.isPending ? "wait" : "pointer"),
               letterSpacing: "0.01em",
               opacity: joinMutation.isPending ? 0.7 : 1,
             }}
           >
-            {joinMutation.isPending ? "Joining…" : "Join Challenge"}
+            {challenge.status === "upcoming" ? "Upcoming" : (joinMutation.isPending ? "Joining…" : "Join Challenge")}
           </motion.button>
         ) : (
           <span style={{ fontSize: "12px", color: "#39E609", fontWeight: 700 }}>✓ Joined</span>
@@ -218,9 +220,10 @@ function ChallengeCard({ challenge, index }: { challenge: Challenge; index: numb
 
 /* ─────────────────────────────────────────────
    BadgeCard
-───────────────────────────────────────────── */
-function BadgeCard({ badge, index }: { badge: (typeof BADGES)[0]; index: number }) {
+   ───────────────────────────────────────────── */
+function BadgeCard({ badge, index }: { badge: Badge; index: number }) {
   const [popped, setPopped] = useState(false);
+  const IconComponent = BADGE_ICONS[badge.id] || Trophy;
 
   return (
     <motion.div
@@ -256,7 +259,7 @@ function BadgeCard({ badge, index }: { badge: (typeof BADGES)[0]; index: number 
         style={{ marginBottom: "6px", display: "flex", alignItems: "center", justifyContent: "center" }}
       >
         {badge.earned ? (
-          <badge.icon size={34} color={badge.color} />
+          <IconComponent size={34} color={badge.color} />
         ) : (
           <Lock size={34} color="#6b7280" />
         )}
@@ -274,22 +277,77 @@ function BadgeCard({ badge, index }: { badge: (typeof BADGES)[0]; index: number 
 
 /* ─────────────────────────────────────────────
    Main Page
-───────────────────────────────────────────── */
+   ───────────────────────────────────────────── */
 export default function ChallengesPage() {
   const [filter, setFilter] = useState("All");
   const api = useApiClient();
+  const isApiReady = useIsApiReady();
 
-  const { data: challenges = [], isLoading } = useQuery<Challenge[]>({
+  const {
+    challenges: storeChallenges,
+    badges: storeBadges,
+    xp: storeXp,
+    level: storeLevel,
+    setChallenges,
+    setBadges,
+    setXPAndLevel,
+  } = useChallengesStore();
+
+  const { data: challengesData, isLoading: challengesLoading } = useQuery<Challenge[]>({
     queryKey: ["challenges"],
     queryFn: () => api("/challenges"),
+    refetchOnWindowFocus: true,
+    enabled: isApiReady,
   });
 
+  const { data: badgesData } = useQuery<Badge[]>({
+    queryKey: ["badges"],
+    queryFn: () => api("/challenges/badges"),
+    refetchOnWindowFocus: true,
+    enabled: isApiReady,
+  });
+
+  const { data: userProfile } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: () => api("/users/profile"),
+    refetchOnWindowFocus: true,
+    enabled: isApiReady,
+  });
+
+  useEffect(() => {
+    if (challengesData) {
+      setChallenges(challengesData);
+    }
+  }, [challengesData, setChallenges]);
+
+  useEffect(() => {
+    if (badgesData) {
+      setBadges(badgesData);
+    }
+  }, [badgesData, setBadges]);
+
+  useEffect(() => {
+    if (userProfile) {
+      setXPAndLevel(userProfile.xp ?? 0, userProfile.level ?? 1);
+    }
+  }, [userProfile, setXPAndLevel]);
+
+  // Compute tabs filter using store data
   const filtered =
     filter === "All"
-      ? challenges
-      : challenges.filter((c) => c.status === filter.toLowerCase());
+      ? storeChallenges
+      : filter === "Active"
+      ? storeChallenges.filter((c) => c.status === "active" || c.status === "joined")
+      : storeChallenges.filter((c) => c.status === filter.toLowerCase());
 
   const tabs = ["All", "Active", "Completed", "Upcoming"];
+
+  // Compute XP progress level
+  const currentXp = storeXp;
+  const currentLevel = storeLevel;
+  const xpInCurrentLevel = currentXp % 500;
+  const xpNeededForNextLevel = 500 - xpInCurrentLevel;
+  const progressPercentage = (xpInCurrentLevel / 500) * 100;
 
   return (
     <>
@@ -412,7 +470,7 @@ export default function ChallengesPage() {
                   Your XP Level
                 </p>
                 <p style={{ margin: "3px 0 0", color: "#6b7280", fontSize: "13px" }}>
-                  Level 14 · 2,840 XP total
+                  Level {currentLevel} · {currentXp.toLocaleString()} XP total
                 </p>
               </div>
             </div>
@@ -420,8 +478,8 @@ export default function ChallengesPage() {
             {/* Right: progress bar */}
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "220px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                <span style={{ color: "#6b7280" }}>Progress to Level 15</span>
-                <span style={{ color: "#39E609", fontWeight: 700 }}>68%</span>
+                <span style={{ color: "#6b7280" }}>Progress to Level {currentLevel + 1}</span>
+                <span style={{ color: "#39E609", fontWeight: 700 }}>{Math.round(progressPercentage)}%</span>
               </div>
               <div
                 style={{
@@ -433,7 +491,7 @@ export default function ChallengesPage() {
               >
                 <motion.div
                   initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 0.68 }}
+                  animate={{ scaleX: progressPercentage / 100 }}
                   transition={{ duration: 1.1, ease: "easeOut", delay: 0.4 }}
                   style={{
                     height: "100%",
@@ -445,7 +503,7 @@ export default function ChallengesPage() {
                 />
               </div>
               <p style={{ margin: 0, color: "#4b5563", fontSize: "11px" }}>
-                1,960 XP to next level
+                {xpNeededForNextLevel.toLocaleString()} XP to next level
               </p>
             </div>
           </div>
@@ -492,7 +550,7 @@ export default function ChallengesPage() {
 
         {/* ── Challenge Cards Grid ── */}
         <div>
-          {isLoading ? (
+          {challengesLoading && storeChallenges.length === 0 ? (
             <div
               style={{
                 textAlign: "center",
@@ -559,12 +617,12 @@ export default function ChallengesPage() {
                 fontWeight: 500,
               }}
             >
-              {BADGES.filter((b) => b.earned).length}/{BADGES.length} earned
+              {storeBadges.filter((b) => b.earned).length}/{storeBadges.length || 6} earned
             </span>
           </div>
 
           <div className="badges-grid">
-            {BADGES.map((badge, i) => (
+            {storeBadges.map((badge, i) => (
               <BadgeCard key={badge.name} badge={badge} index={i} />
             ))}
           </div>

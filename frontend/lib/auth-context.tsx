@@ -190,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("gymrat_token");
     localStorage.removeItem("gymrat_user");
     localStorage.removeItem("gymrat_signup_goal");
+    localStorage.removeItem("gymrat-challenges-store");
     removeAuthCookie();
     setToken(null);
     setUser(null);

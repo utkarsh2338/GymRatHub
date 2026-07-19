@@ -12,6 +12,7 @@ import CommentModel from "../models/Comment";
 import UserChallengeModel from "../models/Challenge";
 import { searchTutorialVideos } from "../services/youtube";
 import { FRESH_USER_STATS } from "../constants/freshUser";
+import { updateChallengeProgressAndBadges } from "../services/challengeService";
 import workoutTrackingRouter from "./workoutTracking";
 import { syncTodayWorkoutFromTemplate } from "../services/workoutPlanSync";
 import {
@@ -1445,26 +1446,9 @@ router.delete("/community/posts/:postId/comments/:commentId", async (req: Authen
 router.get("/challenges", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
-    let challenges = await UserChallengeModel.find({ clerkId });
+    if (!clerkId) return res.status(401).json({ error: "Unauthorized" });
 
-    if (challenges.length === 0) {
-      // Populate defaults
-      const defaults = [
-        { challengeId: "c1", name: "30 Day Beast Challenge", description: "Complete 30 consecutive days of training", category: "Consistency", progress: 70, xpReward: 500, endDate: "2026-02-21", participants: 12847, status: "active", badgeEmoji: "🏆" },
-        { challengeId: "c2", name: "100K Steps", description: "Hit 100,000 steps this week", category: "Cardio", progress: 45, xpReward: 200, endDate: "2026-01-28", participants: 8432, status: "active", badgeEmoji: "👟" },
-        { challengeId: "c3", name: "Protein King", description: "Hit your protein goal 7 days in a row", category: "Nutrition", progress: 85, xpReward: 300, endDate: "2026-01-27", participants: 5210, status: "active", badgeEmoji: "💪" },
-      ];
-
-      const mapped = [];
-      for (const item of defaults) {
-        const doc = await UserChallengeModel.create({
-          clerkId,
-          ...item
-        });
-        mapped.push(doc);
-      }
-      challenges = mapped;
-    }
+    const { challenges } = await updateChallengeProgressAndBadges(clerkId);
 
     return res.json(challenges.map(c => ({
       id: c.challengeId,
@@ -1484,11 +1468,26 @@ router.get("/challenges", async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// GET Challenges Badges
+router.get("/challenges/badges", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const clerkId = req.auth?.userId;
+    if (!clerkId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { badges } = await updateChallengeProgressAndBadges(clerkId);
+    return res.json(badges);
+  } catch (error) {
+    console.error("GET badges error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 // POST Join Challenge
 router.post("/challenges/:challengeId/join", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
     const { challengeId } = req.params;
+    if (!clerkId) return res.status(401).json({ error: "Unauthorized" });
 
     const challenge = await UserChallengeModel.findOneAndUpdate(
       { clerkId, challengeId },
@@ -1499,6 +1498,9 @@ router.post("/challenges/:challengeId/join", async (req: AuthenticatedRequest, r
     if (!challenge) {
       return res.status(404).json({ error: "Challenge not found." });
     }
+
+    // Run dynamic calculation to see if they completed it immediately or update progress
+    await updateChallengeProgressAndBadges(clerkId);
 
     return res.json(challenge);
   } catch (error) {
