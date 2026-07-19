@@ -188,7 +188,7 @@ function getDayName(): string {
 router.get("/users/profile", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clerkId = req.auth?.userId;
-    let user = await UserModel.findOne({ clerkId });
+    const user = await UserModel.findOne({ clerkId });
     if (!user) {
       return res.status(404).json({ error: "User profile not found." });
     }
@@ -541,7 +541,7 @@ router.get("/workouts/today", async (req: AuthenticatedRequest, res: Response) =
     const clerkId = req.auth?.userId;
     const user = await UserModel.findOne({ clerkId });
 
-    let workout = await syncTodayWorkoutFromTemplate(clerkId!);
+    const workout = await syncTodayWorkoutFromTemplate(clerkId!);
 
     if (workout && user && !user.targetConfigured) {
       let workoutChanged = false;
